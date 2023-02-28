@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import rospy
 from drone_fsm import *
 from std_srvs.srv import Empty, EmptyResponse
@@ -57,16 +58,20 @@ def comm_node():
     drone = DroneFSM()
 
     ## MILESTONE 2 ##
+    
     drone.arm()
-    drone.takeoff(1.5) # m
-    drone.hover(10.0) # s
-    drone.land()
+    #drone.takeoff(1.5) # m
+    #drone.hover(10.0) # s
+    #drone.land()
 
     rospy.spin()
 
 if __name__ == '__main__':
+    print("in main")
     try:
         comm_node()
     except rospy.ROSInterruptException:
+        print("didnt make it in comm_node")
         pass
+    
     
