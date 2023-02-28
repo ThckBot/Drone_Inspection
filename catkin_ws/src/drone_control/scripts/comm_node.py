@@ -3,22 +3,23 @@ from drone_fsm import *
 from std_srvs.srv import Empty, EmptyResponse
 
 # Callback handlers
-def handle_launch():
+def handle_launch(drone):
     print('Launch Requested. Your drone should take off.')
     # For milestone 2 we are going to set heigh manually as 1.5m as per spec
-    DronePlanner.takeoff(1.5)
+    drone.takeoff(1.5)
 
-def handle_test():
+def handle_test(drone):
     print('Test Requested. Your drone should perform the required tasks. Recording starts now.')
     # Want to hover in place for 30 seconds for milestone 2
-    DronePlanner.hover(30)
+    drone.hover(30)
 
-def handle_land():
+def handle_land(drone):
     print('Land Requested. Your drone should land.')
-    DronePlanner.land()
+    drone.land()
 
-def handle_abort():
+def handle_abort(drone):
     print('Abort Requested. Your drone should land immediately due to safety considerations')
+    drone.shutdown()
     #DronePlanner
 
 # Service callbacks
@@ -45,7 +46,7 @@ def comm_node():
     print('The TAs will test these service calls prior to flight')
     print('Your own code should be integrated into this node')
     
-    node_name = 'rob498_drone_XX'
+    node_name = 'rob498_drone_11'
     rospy.init_node(node_name) 
     srv_launch = rospy.Service(node_name + '/comm/launch', Empty, callback_launch)
     srv_test = rospy.Service(node_name + '/comm/test', Empty, callback_test)
@@ -53,15 +54,19 @@ def comm_node():
     srv_abort = rospy.Service(node_name + '/comm/abort', Empty, callback_abort)
 
     # Your code goes below
+    drone = DroneFSM()
 
-
-
+    ## MILESTONE 2 ##
+    drone.arm()
+    drone.takeoff(1.5) # m
+    drone.hover(10.0) # s
+    drone.land()
 
     rospy.spin()
 
-if __name__ == "__main__":
-    # Instantiate our Drone FSM Planner
-    DronePlanner = DroneFSM()
-
-    comm_node()
+if __name__ == '__main__':
+    try:
+        comm_node()
+    except rospy.ROSInterruptException:
+        pass
     
