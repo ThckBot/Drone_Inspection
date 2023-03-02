@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import rospy
 from drone_fsm import *
 from std_srvs.srv import Empty, EmptyResponse
@@ -47,7 +48,7 @@ def comm_node():
     print('Your own code should be integrated into this node')
     
     node_name = 'rob498_drone_11'
-    rospy.init_node(node_name) 
+    rospy.init_node(node_name, anonymous=True) 
     srv_launch = rospy.Service(node_name + '/comm/launch', Empty, callback_launch)
     srv_test = rospy.Service(node_name + '/comm/test', Empty, callback_test)
     srv_land = rospy.Service(node_name + '/comm/land', Empty, callback_land)
@@ -57,16 +58,18 @@ def comm_node():
     drone = DroneFSM()
 
     ## MILESTONE 2 ##
+    
     drone.arm()
-    drone.takeoff(1.5) # m
-    drone.hover(10.0) # s
-    drone.land()
-
-    rospy.spin()
+    #drone.takeoff(1.5) # m
+    #drone.hover(10.0) # s
+    #drone.land()
+    
 
 if __name__ == '__main__':
     try:
         comm_node()
+        rospy.spin()
     except rospy.ROSInterruptException:
+        print("didnt make it in comm_node")
         pass
     

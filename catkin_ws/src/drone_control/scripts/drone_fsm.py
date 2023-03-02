@@ -1,6 +1,7 @@
 import rospy
 import std_msgs
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State 
 from mavros_msgs.srv import CommandBool, SetMode
 from tf.transformations import *
@@ -16,8 +17,8 @@ import time
 class DroneFSM():
     def __init__(self):
         # fill in
-        self.pose = None
-        self.state = None
+        self.pose = Odometry()
+        self.state = State()
 
         self.rate = rospy.Rate(10) # Hz
 
@@ -26,16 +27,19 @@ class DroneFSM():
         self.arming_client = rospy.ServiceProxy('/mavros/cmd/arming', CommandBool)
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
         rospy.Subscriber('/mavros/state', State, self.state_callback)
-        rospy.Subscriber('/mavros/odometry/out', PoseStamped, self.pose_callback) # publishes both position and orientation (quaternion)
+        rospy.Subscriber('/mavros/odometry/out', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
+        print('here')
 
     
     # Callback for the state subscriber
     def state_callback(self, state):
         self.state = state
+        print("self.state: ", self.state)
 
     # Callback for the pose subscriber
     def pose_callback(self, pose_msg):
         self.pose = pose_msg
+        print("self.pose: ", self.pose)
         # Check if we get the correct pose
 
     # Arm the drone
