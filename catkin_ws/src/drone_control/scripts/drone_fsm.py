@@ -56,29 +56,28 @@ class DroneFSM():
             self.rate.sleep()
 
         prev_request_t = rospy.get_time()
-        prev_state = self.current_state
+        prev_state = self.state
         while not rospy.is_shutdown():
             curr_request_t = rospy.get_time()
             request_interval = curr_request_t - prev_request_t
             # First set to offboard mode
-            if self.current_state.mode != "OFFBOARD" and request_interval > 2.:
+            if self.state.mode != "OFFBOARD" and request_interval > 2.:
                 self.set_mode_client(base_mode=0, custom_mode="OFFBOARD")
                 prev_request_t = curr_request_t
                 print("Current mode: %s" % self.current_state.mode)
 
             # Then arm it
-            if not self.current_state.armed and request_interval > 2.:
+            if not self.state.armed and request_interval > 2.:
                 self.arming_client(True)
                 prev_request_t = curr_request_t
                 print("Vehicle armed: %r" % self.current_state.armed)
             
-            if self.current_state.armed:
+            if self.state.armed:
                 break
 
             self.publish_setpoint([0,0,0])
             self.rate.sleep()
 
-        
         return
     
     # De-arm drone and shut down
@@ -108,7 +107,7 @@ class DroneFSM():
             self.publish_setpoint(self.sp)
             self.rate.sleep()
 
-    
+
     # Land drone safely
     def land(self):
         print("Landing...")
