@@ -17,8 +17,12 @@ import time
 class DroneFSM():
     def __init__(self):
         # fill in
-        self.pose = Odometry()
+        self.position = None
+        self.orientation = None
+        # self.lin_vel = None
+        # self.ang_vel = None
         self.state = State()
+        self.sp = Odometry()
 
         self.hz = 10
         self.rate = rospy.Rate(self.hz) # Hz
@@ -29,26 +33,29 @@ class DroneFSM():
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
         rospy.Subscriber('/mavros/state', State, self.state_callback)
         rospy.Subscriber('/mavros/odometry/out', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
-        self.vicon_sub = rospy.Subscriber("/vicon/VICON_NAME/VICON_NAME", PoseStamped, self.vicon_callback)
-        print('here')
 
     
     # Callback for the state subscriber
     def state_callback(self, state):
         self.state = state
-        print("self.state: ", self.state)
+        #print("self.state: ", self.state)
 
     # Callback for the pose subscriber
     def pose_callback(self, pose_msg):
-        self.pose = pose_msg
-        print("self.pose: ", self.pose)
-        # Check if we get the correct pose
+        self.position = pose_msg.pose.pose.position
+        self.orientation = pose_msg.pose.pose.orientation
+        # self.lin_vel = pose_msg.twist.twist.linear
+        # self.ang_vel = pose_msg.twist.twist.angular
+
 
     # Arm the drone
     def arm(self):
+        self.sp.x = 0
+        self.sp.y = 0
+        self.sp.z = 0
         # Publish ground set point
         for i in range(self.hz):
-            self.publish_setpoint([0,0,0])
+            self.publish_setpoint(self.sp)
             self.rate.sleep()
 
         while not self.state.connected:
@@ -74,7 +81,8 @@ class DroneFSM():
             if self.state.armed:
                 break
 
-            self.publish_setpoint([0,0,0])
+            
+            self.publish_setpoint(self.sp)
             self.rate.sleep()
 
         return
@@ -87,9 +95,9 @@ class DroneFSM():
     # Lift drone off ground
     def takeoff(self, height):
         print("Takeoff...")
-        self.sp = self.pose
-        while self.pose[2] < height:
-            self.sp[2] += 0.02
+        self.sp = self.position
+        while self.position.z < height:
+            self.sp.z += 0.02
             self.publish_setpoint(self.sp)
             self.rate.sleep()
 
@@ -98,7 +106,7 @@ class DroneFSM():
     def hover(self, t_hold):
         print('Position holding...')
         t0 = time.time()
-        self.sp = self.pose
+        self.sp = self.position
         while not rospy.is_shutdown():
             t = time.time()
             if t - t0 > t_hold and t_hold > 0: break
@@ -110,9 +118,9 @@ class DroneFSM():
     # Land drone safely
     def land(self):
         print("Landing...")
-        self.sp = self.pose
-        while self.sp[2] > - 1.0:
-            self.sp[2] -= 0.05
+        self.sp = self.position
+        while self.sp.z > 0.0:
+            self.sp.z -= 0.05
             self.publish_setpoint(self.sp)
             self.rate.sleep()
         # self.stop()
@@ -125,11 +133,11 @@ class DroneFSM():
     # Publish set point
     def publish_setpoint(self, setpoint, yaw = np.pi/2):
         sp = PoseStamped()
-        sp.pose.position.x = setpoint[0]
-        sp.pose.position.y = setpoint[1]
-        sp.pose.position.z = setpoint[2]
+        sp.pose.position.x = setpoint.x
+        sp.pose.position.y = setpoint.y
+        sp.pose.position.z = setpoint.z
+
         q = quaternion_from_euler(0, 0, yaw)
-        
         sp.pose.orientation.x = q[0]
         sp.pose.orientation.y = q[1]
         sp.pose.orientation.z = q[2]
