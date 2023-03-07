@@ -51,12 +51,11 @@ class DroneFSM():
             self.publish_setpoint([0,0,0])
             self.rate.sleep()
 
-        while not self.current_state.connected:
+        while not self.state.connected:
             print('Waiting for FCU Connection')
             self.rate.sleep()
 
         prev_request_t = rospy.get_time()
-        prev_state = self.state
         while not rospy.is_shutdown():
             curr_request_t = rospy.get_time()
             request_interval = curr_request_t - prev_request_t
