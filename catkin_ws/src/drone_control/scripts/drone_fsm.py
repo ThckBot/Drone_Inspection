@@ -19,8 +19,8 @@ class DroneFSM():
         # fill in
         self.pose = Odometry()
         self.state = State()
-
-        self.rate = rospy.Rate(10) # Hz
+        self.hz = 10
+        self.rate = rospy.Rate(self.hz) # Hz
 
         # some required publishers and subscribers
         self.setpoint_publisher = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
