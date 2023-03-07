@@ -21,6 +21,7 @@ class DroneFSM():
         self.state = State()
         self.hz = 10
         self.rate = rospy.Rate(self.hz) # Hz
+        self.sp = None
 
         # some required publishers and subscribers
         self.setpoint_publisher = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
@@ -34,51 +35,60 @@ class DroneFSM():
     # Callback for the state subscriber
     def state_callback(self, state):
         self.state = state
-        print("self.state: ", self.state)
+        # print("self.state: ", self.state)
 
     # Callback for the pose subscriber
     def pose_callback(self, pose_msg):
         self.pose = pose_msg
-        print("self.pose: ", self.pose)
+        # print("self.pose: ", self.pose)
         # Check if we get the correct pose
 
     # Arm the drone
     def arm(self):
+        print("Arm called")
+                
         # Publish ground set point
         for i in range(self.hz):
             self.publish_setpoint([0,0,0])
             self.rate.sleep()
 
-        while not self.state.connected:
-            print('Waiting for FCU Connection')
-            self.rate.sleep()
-
+        # while not self.state.connected:
+        #     print('Waiting for FCU Connection')
+        #     self.rate.sleep()
+        rospy.wait_for_service('mavros/cmd/arming')
         prev_request_t = rospy.get_time()
         while not rospy.is_shutdown():
             curr_request_t = rospy.get_time()
             request_interval = curr_request_t - prev_request_t
             # First set to offboard mode
-            if self.state.mode != "OFFBOARD" and request_interval > 2.:
-                self.set_mode_client(base_mode=0, custom_mode="OFFBOARD")
-                prev_request_t = curr_request_t
-                print("Current mode: %s" % self.current_state.mode)
+            # if self.state.mode != "OFFBOARD" and request_interval > 2.:
+            #     self.set_mode_client(base_mode=0, custom_mode="OFFBOARD")
+            #     prev_request_t = curr_request_t
+            #     print("Current mode: %s" % self.state.mode)
 
             # Then arm it
             if not self.state.armed and request_interval > 2.:
-                self.arming_client(True)
+                #self.arming_client = rospy.ServiceProxy('/mavros/cmd/arming', CommandBool)
+                try:
+                    self.arming_client(True)
+                except rospy.ServiceException as exc:
+                    print("Service arm call failed, exception is", str(exc))
+
                 prev_request_t = curr_request_t
-                print("Vehicle armed: %r" % self.current_state.armed)
+                print("Vehicle armed: %r" % self.state.armed)
             
             if self.state.armed:
+                print('Armed!')
                 break
 
             self.publish_setpoint([0,0,0])
             self.rate.sleep()
 
-        return
+        return True
     
     # De-arm drone and shut down
     def shutdown(self):
+        print("Inside Shutdown")
         while self.state.armed or self.state.mode == "OFFBOARD":
             if self.state.armed:
                 self.arming_client(False)
@@ -91,8 +101,9 @@ class DroneFSM():
     def takeoff(self, height):
         print("Takeoff...")
         self.sp = self.pose
-        while self.pose[2] < height:
-            self.sp[2] += 0.02
+        print(self.sp.twist.twist)
+        while self.pose.twist.twist.linear.z < height:
+            self.sp.twist.twist.linear.z += 0.02
             self.publish_setpoint(self.sp)
             self.rate.sleep()
 

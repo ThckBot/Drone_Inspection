@@ -60,7 +60,9 @@ def comm_node():
     ## MILESTONE 2 ##
     
     drone.arm()
-    #drone.takeoff(1.5) # m
+    rospy.sleep(1.)
+    drone.takeoff(0.5) # m
+    drone.shutdown()
     #drone.hover(10.0) # s
     #drone.land()
     
