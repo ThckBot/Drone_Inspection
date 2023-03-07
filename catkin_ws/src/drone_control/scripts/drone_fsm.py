@@ -49,7 +49,12 @@ class DroneFSM():
     
     # De-arm drone and shut down
     def shutdown(self):
-
+        while self.state.armed or self.state.mode == "OFFBOARD":
+            if self.state.armed:
+                self.arming_client(False)
+            if self.state.mode == "OFFBOARD":
+                self.set_mode_client(base_mode=0, custom_mode="MANUAL")
+            self.rate.sleep()
         return
     
     # Lift drone off ground
