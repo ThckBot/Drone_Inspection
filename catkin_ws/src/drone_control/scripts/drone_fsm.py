@@ -20,7 +20,8 @@ class DroneFSM():
         self.pose = Odometry()
         self.state = State()
 
-        self.rate = rospy.Rate(10) # Hz
+        self.hz = 10
+        self.rate = rospy.Rate(self.hz) # Hz
 
         # some required publishers and subscribers
         self.setpoint_publisher = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
@@ -28,6 +29,7 @@ class DroneFSM():
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
         rospy.Subscriber('/mavros/state', State, self.state_callback)
         rospy.Subscriber('/mavros/odometry/out', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
+        self.vicon_sub = rospy.Subscriber("/vicon/VICON_NAME/VICON_NAME", PoseStamped, self.vicon_callback)
         print('here')
 
     
@@ -44,6 +46,38 @@ class DroneFSM():
 
     # Arm the drone
     def arm(self):
+        # Publish ground set point
+        for i in range(self.hz):
+            self.publish_setpoint([0,0,0])
+            self.rate.sleep()
+
+        while not self.current_state.connected:
+            print('Waiting for FCU Connection')
+            self.rate.sleep()
+
+        prev_request_t = rospy.get_time()
+        prev_state = self.current_state
+        while not rospy.is_shutdown():
+            curr_request_t = rospy.get_time()
+            request_interval = curr_request_t - prev_request_t
+            # First set to offboard mode
+            if self.current_state.mode != "OFFBOARD" and request_interval > 2.:
+                self.set_mode_client(base_mode=0, custom_mode="OFFBOARD")
+                prev_request_t = curr_request_t
+                print("Current mode: %s" % self.current_state.mode)
+
+            # Then arm it
+            if not self.current_state.armed and request_interval > 2.:
+                self.arming_client(True)
+                prev_request_t = curr_request_t
+                print("Vehicle armed: %r" % self.current_state.armed)
+            
+            if self.current_state.armed:
+                break
+
+            self.publish_setpoint([0,0,0])
+            self.rate.sleep()
+
         
         return
     
