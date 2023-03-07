@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Include the MAVROS node with SITL and Gazebo -->
+	<include file="$(find px4_realsense_bridge)/launch/bridge_mavros.launch">
+	</include>
+
+	<!-- Our node to control the drone -->
+	<node pkg="offboard_py" type="comm_node.py" name="comm_node" required="true" output="screen" />
+</launch>

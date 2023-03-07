@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import rospy
-from drone_fsm import *
+from offb_node import *
 from std_srvs.srv import Empty, EmptyResponse
 
 # Callback handlers
@@ -60,11 +60,11 @@ def comm_node():
     ## MILESTONE 2 ##
     
     drone.arm()
-    drone.takeoff(0.2) # m
+    # drone.takeoff(0.2) # m
     # drone.hover(5.0) # s
     #drone.land()
     rospy.sleep(2.)
-    drone.shutdown()
+    # drone.shutdown()
     
 
 if __name__ == '__main__':
