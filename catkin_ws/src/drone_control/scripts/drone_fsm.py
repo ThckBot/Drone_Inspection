@@ -68,10 +68,10 @@ class DroneFSM():
             curr_request_t = rospy.get_time()
             request_interval = curr_request_t - prev_request_t
             # First set to offboard mode
-            # if self.state.mode != "OFFBOARD" and request_interval > 2.:
-            #     self.set_mode_client(base_mode=0, custom_mode="OFFBOARD")
-            #     prev_request_t = curr_request_t
-            #     print("Current mode: %s" % self.state.mode)
+            if self.state.mode != "OFFBOARD" and request_interval > 2.:
+                self.set_mode_client(base_mode=0, custom_mode="OFFBOARD")
+                prev_request_t = curr_request_t
+                print("Current mode: %s" % self.state.mode)
 
             # Then arm it
             if not self.state.armed and request_interval > 2.:
@@ -106,7 +106,7 @@ class DroneFSM():
         print("Takeoff...")
         self.sp_pos = self.position
         while self.position.z < height:
-            self.sp_pos.z += 0.02
+            self.sp_pos.z = self.position.z + 0.02
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
 
@@ -128,8 +128,9 @@ class DroneFSM():
     def land(self):
         print("Landing...")
         self.sp_pos = self.position
-        while self.sp_pos.z > 0.0:
-            self.sp_pos.z -= 0.05
+        while self.position.z > 0.01:
+            print(self.position.z)
+            self.sp_pos.z = self.position.z - 0.05
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
         # self.stop()
