@@ -53,7 +53,7 @@ class DroneFSM():
     def arm(self):
         self.sp_pos.x = 0
         self.sp_pos.y = 0
-        self.sp_pos.z = 0
+        self.sp_pos.z = -1
         # Publish ground set point
         for i in range(self.hz):
             self.publish_setpoint(self.sp_pos)
@@ -77,9 +77,10 @@ class DroneFSM():
             if not self.state.armed and request_interval > 2.:
                 self.arming_client(True)
                 prev_request_t = curr_request_t
-                print("Vehicle armed: %r" % self.state.armed)
+                self.publish_setpoint(self.sp_pos)
             
             if self.state.armed:
+                self.publish_setpoint(self.sp_pos)
                 print("System Armed")
                 break
 
@@ -104,9 +105,21 @@ class DroneFSM():
     # Lift drone off ground
     def takeoff(self, height):
         print("Takeoff...")
+        while self.position == None and not rospy.is_shutdown():
+            print('Waiting for position...')
+            self.rate.sleep()
         self.sp_pos = self.position
-        while self.position.z < height:
-            self.sp_pos.z = self.position.z + 0.02
+        print(height)
+        print(self.position.z)
+        print(rospy.is_shutdown())
+        while self.position.z < height and not rospy.is_shutdown():
+            #print(self.state.armed)
+            #print('z_position: ', self.position.z)
+            #print('height: ', height)
+            self.sp_pos.z = min(self.position.z + 0.10, height)
+            #print('setpoint: ', self.sp_pos)
+            #print(self.state.armed)
+            #print(self.state.mode)
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
 
@@ -116,9 +129,16 @@ class DroneFSM():
         print('Position holding...')
         t0 = time.time()
         self.sp_pos = self.position
+        index = 0
         while not rospy.is_shutdown():
             t = time.time()
             if t - t0 > t_hold and t_hold > 0: break
+            if index >= 20:
+                print('time: ', t-t0)
+                index = 0
+            
+            index = index + 1
+
             # Update timestamp and publish sp 
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
@@ -128,7 +148,7 @@ class DroneFSM():
     def land(self):
         print("Landing...")
         self.sp_pos = self.position
-        while self.position.z > 0.01:
+        while self.position.z > 0.005:
             print(self.position.z)
             self.sp_pos.z = self.position.z - 0.05
             self.publish_setpoint(self.sp_pos)
@@ -141,7 +161,7 @@ class DroneFSM():
         return
 
     # Publish set point
-    def publish_setpoint(self, setpoint, yaw = np.pi/2):
+    def publish_setpoint(self, setpoint, yaw = 0):
         sp = PoseStamped()
         sp.pose.position.x = setpoint.x
         sp.pose.position.y = setpoint.y
@@ -156,5 +176,6 @@ class DroneFSM():
         # Publish to the rosnode
         sp.header.stamp = rospy.Time.now()
         self.setpoint_publisher.publish(sp)
+
 
         return

@@ -1,0 +1,211 @@
+0a1,7
+> """
+>  * File: offb_node.py
+>  * Stack and tested in Gazebo Classic 9 SITL
+> """
+> 
+> #! /usr/bin/env python
+> 
+2d8
+< import std_msgs
+3a10,14
+> from mavros_msgs.msg import State
+> from mavros_msgs.srv import CommandBool, CommandBoolRequest, SetMode, SetModeRequest
+> 
+> # Packages imported previously
+> import std_msgs
+5,6d15
+< from mavros_msgs.msg import State 
+< from mavros_msgs.srv import CommandBool, SetMode
+16d24
+< #Drone FSM Class
+20,23c28,29
+<         self.position = None
+<         self.orientation = None
+<         # self.lin_vel = None
+<         # self.ang_vel = None
+---
+>         # self.position = None
+>         # self.orientation = None
+25,26c31,32
+<         self.sp = Odometry()
+<         self.sp_pos = self.sp.pose.pose.position
+---
+>         # self.sp = Odometry()
+>         # self.sp_pos = self.sp.pose.pose.position
+31c37
+<         # some required publishers and subscribers
+---
+>         # # some required publishers and subscribers
+33,34c39,45
+<         self.arming_client = rospy.ServiceProxy('/mavros/cmd/arming', CommandBool)
+<         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
+---
+> 
+>         rospy.wait_for_service("/mavros/cmd/arming")
+>         self.arming_client = rospy.ServiceProxy("mavros/cmd/arming", CommandBool) 
+>            
+>         rospy.wait_for_service("/mavros/set_mode")
+>         self.set_mode_client = rospy.ServiceProxy("mavros/set_mode", SetMode)
+> 
+42d52
+<         #print("self.state: ", self.state)
+48,49d57
+<         # self.lin_vel = pose_msg.twist.twist.linear
+<         # self.ang_vel = pose_msg.twist.twist.angular
+50a59,76
+>     # Publish set point
+>     def publish_setpoint(self, setpoint, yaw = np.pi/2):
+>         sp = PoseStamped()
+>         sp.pose.position.x = setpoint.x
+>         sp.pose.position.y = setpoint.y
+>         sp.pose.position.z = setpoint.z
+> 
+>         q = quaternion_from_euler(0, 0, yaw)
+>         sp.pose.orientation.x = q[0]
+>         sp.pose.orientation.y = q[1]
+>         sp.pose.orientation.z = q[2]
+>         sp.pose.orientation.w = q[3]
+> 
+>         # Publish to the rosnode
+>         sp.header.stamp = rospy.Time.now()
+>         self.setpoint_publisher.publish(sp)
+> 
+>         return
+52d77
+<     # Arm the drone
+54,59c79,80
+<         self.sp_pos.x = 0
+<         self.sp_pos.y = 0
+<         self.sp_pos.z = -1
+<         # Publish ground set point
+<         for i in range(self.hz):
+<             self.publish_setpoint(self.sp_pos)
+---
+>         # Wait for Flight Controller connection
+>         while(not rospy.is_shutdown() and not self.state.connected):
+62,64c83
+<         while not self.state.connected:
+<             print('Waiting for FCU Connection')
+<             self.rate.sleep()
+---
+>         pose = PoseStamped()
+66,84c85,91
+<         prev_request_t = rospy.get_time()
+<         while not rospy.is_shutdown():
+<             curr_request_t = rospy.get_time()
+<             request_interval = curr_request_t - prev_request_t
+<             # First set to offboard mode
+<             if self.state.mode != "OFFBOARD" and request_interval > 2.:
+<                 self.set_mode_client(base_mode=0, custom_mode="OFFBOARD")
+<                 prev_request_t = curr_request_t
+<                 print("Current mode: %s" % self.state.mode)
+< 
+<             # Then arm it
+<             if not self.state.armed and request_interval > 2.:
+<                 self.arming_client(True)
+<                 prev_request_t = curr_request_t
+<                 self.publish_setpoint(self.sp_pos)
+<             
+<             if self.state.armed:
+<                 self.publish_setpoint(self.sp_pos)
+<                 print("System Armed")
+---
+>         pose.pose.position.x = 0
+>         pose.pose.position.y = 0
+>         pose.pose.position.z = 0
+> 
+>         # Send a few setpoints before starting
+>         for i in range(100):   
+>             if(rospy.is_shutdown()):
+87,88c94,119
+<             
+<             self.publish_setpoint(self.sp_pos)
+---
+>             self.publish_setpoint(pose)
+>             self.rate.sleep()
+> 
+>         offb_set_mode = SetModeRequest()
+>         offb_set_mode.custom_mode = 'OFFBOARD'
+> 
+>         arm_cmd = CommandBoolRequest()
+>         arm_cmd.value = True
+> 
+>         last_req = rospy.Time.now()
+> 
+>         while(not rospy.is_shutdown()):
+>             if(self.state.mode != "OFFBOARD" and (rospy.Time.now() - last_req) > rospy.Duration(5.0)):
+>                 if(self.set_mode_client.call(offb_set_mode).mode_sent == True):
+>                     rospy.loginfo("OFFBOARD enabled")
+>                 
+>                 last_req = rospy.Time.now()
+>             else:
+>                 if(not self.state.armed and (rospy.Time.now() - last_req) > rospy.Duration(5.0)):
+>                     if(self.arming_client.call(arm_cmd).success == True):
+>                         rospy.loginfo("Vehicle armed")
+>                 
+>                     last_req = rospy.Time.now()
+> 
+>             self.publish_setpoint(pose)
+> 
+91,92d121
+<         return
+<     
+108,110d136
+<         while self.position == None and not rospy.is_shutdown():
+<             print('Waiting for position...')
+<             self.rate.sleep()
+112,121c138,139
+<         print(height)
+<         print(self.position.z)
+<         print(rospy.is_shutdown())
+<         while self.position.z < height and not rospy.is_shutdown():
+<             #print(self.state.armed)
+<             #print('z_position: ', self.position.z)
+<             #print('height: ', height)
+<             self.sp_pos.z = self.position.z + 0.30
+<             #print('setpoint: ', self.sp_pos)
+<             print(self.state.armed)
+---
+>         while self.position.z < height:
+>             self.sp_pos.z += 0.02
+143,145c161,162
+<         while self.position.z > 0.005:
+<             print(self.position.z)
+<             self.sp_pos.z = self.position.z - 0.05
+---
+>         while self.sp_pos.z > 0.0:
+>             self.sp_pos.z -= 0.05
+149,170d165
+<     
+<     # Move drone to milestone
+<     def move(self, milestone):
+< 
+<         return
+< 
+<     # Publish set point
+<     def publish_setpoint(self, setpoint, yaw = 0):
+<         sp = PoseStamped()
+<         sp.pose.position.x = setpoint.x
+<         sp.pose.position.y = setpoint.y
+<         sp.pose.position.z = setpoint.z
+< 
+<         q = quaternion_from_euler(0, 0, yaw)
+<         sp.pose.orientation.x = q[0]
+<         sp.pose.orientation.y = q[1]
+<         sp.pose.orientation.z = q[2]
+<         sp.pose.orientation.w = q[3]
+< 
+<         # Publish to the rosnode
+<         sp.header.stamp = rospy.Time.now()
+<         self.setpoint_publisher.publish(sp)
+171a167,170
+> if __name__ == "__main__":
+>     rospy.init_node("offb_node_py")
+>  
+>     
+173c172
+<         return
+---
+>     
+\ No newline at end of file
