@@ -69,8 +69,9 @@ class DroneFSM():
             request_interval = curr_request_t - prev_request_t
             # First set to offboard mode
             if self.state.mode != "OFFBOARD" and request_interval > 2.:
-                self.set_mode_client(base_mode=0, custom_mode="OFFBOARD")
+                ret = self.set_mode_client(base_mode=0, custom_mode="OFFBOARD")
                 prev_request_t = curr_request_t
+                print("return from set_mode: ", ret)
                 print("Current mode: %s" % self.state.mode)
 
             # Then arm it
@@ -113,14 +114,14 @@ class DroneFSM():
             print('Waiting for position...')
             self.rate.sleep()
         self.sp_pos = self.position
-        print(height)
-        print(self.position.z)
+        print("Height is: ", height)
+        print("self.position.z is: ", self.position.z)
         print(rospy.is_shutdown())
-        while self.position.z < height and not rospy.is_shutdown():
+        while self.position.z < height -0.02 and not rospy.is_shutdown():
             #print(self.state.armed)
             #print('z_position: ', self.position.z)
             #print('height: ', height)
-            self.sp_pos.z = min(self.position.z + 0.10, height)
+            self.sp_pos.z = height
             #print('setpoint: ', self.sp_pos)
             #print(self.state.armed)
             #print(self.state.mode)
@@ -152,9 +153,9 @@ class DroneFSM():
     def land(self):
         print("Landing...")
         self.sp_pos = self.position
-        while self.position.z > 0.005:
+        while self.position.z > 0.01:
             print(self.position.z)
-            self.sp_pos.z = self.position.z - 0.05
+            self.sp_pos.z = self.position.z - 0.10
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
         # self.stop()
@@ -165,7 +166,7 @@ class DroneFSM():
         return
 
     # Publish set point
-    def publish_setpoint(self, setpoint, yaw = 0):
+    def publish_setpoint(self, setpoint, yaw = -np.pi/2):
         sp = PoseStamped()
         sp.pose.position.x = setpoint.x
         sp.pose.position.y = setpoint.y
