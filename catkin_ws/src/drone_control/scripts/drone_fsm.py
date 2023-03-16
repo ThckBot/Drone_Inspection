@@ -23,6 +23,7 @@ class DroneFSM():
         # self.ang_vel = None
         self.state = State()
         self.sp = Odometry()
+        self.fsm_state = -1
         self.sp_pos = self.sp.pose.pose.position
 
         self.hz = 10
@@ -80,7 +81,7 @@ class DroneFSM():
                 prev_request_t = curr_request_t
                 self.publish_setpoint(self.sp_pos)
             
-            if self.state.armed:
+            if self.state.armed and self.state.mode == 'OFFBOARD':
                 self.publish_setpoint(self.sp_pos)
                 print("System Armed")
                 break
@@ -94,7 +95,7 @@ class DroneFSM():
     # De-arm drone and shut down
     def shutdown(self):
         print("Inside Shutdown")
-        while self.state.armed or self.state.mode == "OFFBOARD":
+        while (self.state.armed or self.state.mode == "OFFBOARD") and self.fsm_state == 4:
             if self.state.armed:
                 print("Disarming")
                 self.arming_client(False)
@@ -130,14 +131,13 @@ class DroneFSM():
 
 
     # Hover drone in place for a set amount of time
-    def hover(self, t_hold):
+    def hover(self):
         print('Position holding...')
         t0 = time.time()
         self.sp_pos = self.position
         index = 0
-        while not rospy.is_shutdown():
+        while (not rospy.is_shutdown()) and self.fsm_state == 0:
             t = time.time()
-            if t - t0 > t_hold and t_hold > 0: break
             if index >= 20:
                 print('time: ', t-t0)
                 index = 0
@@ -153,7 +153,7 @@ class DroneFSM():
     def land(self):
         print("Landing...")
         self.sp_pos = self.position
-        while self.position.z > 0.01:
+        while (self.position.z > 0.01) and self.fsm_state == 3:
             print(self.position.z)
             self.sp_pos.z = self.position.z - 0.10
             self.publish_setpoint(self.sp_pos)
