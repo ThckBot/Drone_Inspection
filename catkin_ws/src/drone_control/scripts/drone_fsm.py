@@ -95,8 +95,12 @@ class DroneFSM():
         print("Inside Shutdown")
         while self.state.armed or self.state.mode == "OFFBOARD":
             if self.state.armed:
+                print("Disarming")
                 self.arming_client(False)
+                print("Completed Disarming")
+                print(self.state.armed)
             if self.state.mode == "OFFBOARD":
+                print("Set to manual mode")
                 self.set_mode_client(base_mode=0, custom_mode="MANUAL")
             self.rate.sleep()
         print("Is it armed at shutdown", self.state.armed)
