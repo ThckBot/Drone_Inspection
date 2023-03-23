@@ -63,10 +63,14 @@ def comm_node():
     srv_abort = rospy.Service(node_name + '/comm/abort', Empty, callback_abort)
 
     # Your code goes below
-    
+    drone.arm()
+    drone.takeoff(1.4)
+    drone.hover_test(10)
+    drone.land()
+    drone.shutdown()
 
     ## MILESTONE 2 ##
-    while True:
+    while not rospy.is_shutdown():
         if drone.fsm_state == 0:
             drone.arm()
             drone.takeoff(1.4)

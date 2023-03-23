@@ -34,7 +34,7 @@ class DroneFSM():
         self.arming_client = rospy.ServiceProxy('/mavros/cmd/arming', CommandBool)
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
         rospy.Subscriber('/mavros/state', State, self.state_callback)
-        rospy.Subscriber('/mavros/odometry/out', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
+        rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
 
     
     # Callback for the state subscriber
@@ -148,6 +148,24 @@ class DroneFSM():
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
 
+    def hover_test(self, hover_time):
+        print('Position holding...')
+        t0 = time.time()
+        self.sp_pos = self.position
+        index = 0
+        t = time.time()
+        while (not rospy.is_shutdown()) and hover_time >= t-t0:
+            t = time.time()
+            if index >= 20:
+                print('time: ', t-t0)
+                index = 0
+            
+            index = index + 1
+
+            # Update timestamp and publish sp 
+            self.publish_setpoint(self.sp_pos)
+            self.rate.sleep()
+
 
     # Land drone safely
     def land(self):
@@ -166,7 +184,7 @@ class DroneFSM():
         return
 
     # Publish set point
-    def publish_setpoint(self, setpoint, yaw = -np.pi/2):
+    def publish_setpoint(self, setpoint, yaw = 0):
         sp = PoseStamped()
         sp.pose.position.x = setpoint.x
         sp.pose.position.y = setpoint.y
