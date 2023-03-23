@@ -5,6 +5,8 @@ from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State 
 from mavros_msgs.srv import CommandBool, SetMode
 from tf.transformations import *
+from mavros_msgs.msg import Waypoint, WaypointList, WaypointReached
+from mavros_msgs.srv import WaypointPush, WaypointPushRequest, WaypointClear, WaypointClearRequest
 import message_filters
 
 from math import *
@@ -35,8 +37,13 @@ class DroneFSM():
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
         rospy.Subscriber('/mavros/state', State, self.state_callback)
         rospy.Subscriber('/mavros/odometry/out', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
+        rospy.Subscriber('/mavros/mission/reached', WaypointReached, self.waypoint_reached_callback)
         
-    
+        # Waypoint Subscriber and Publishers
+        self.waypoint_client = rospy.ServiceProxy('/mavros/mission/push', WaypointPush)
+        self.waypoints = WaypointList() # Initialize list of waypoints
+        # TODO Confirm if we are receiving waypoints in format of mavros_msgs/Waypoint Message
+
     # Callback for the state subscriber
     def state_callback(self, state):
         self.state = state
@@ -49,6 +56,12 @@ class DroneFSM():
         # self.lin_vel = pose_msg.twist.twist.linear
         # self.ang_vel = pose_msg.twist.twist.angular
 
+    def waypoint_reached_callback(self, msg):
+        if msg.wp_seq == len(self.waypoints.waypoints) - 1:
+            # The last waypoint has been reached
+            clear_service = rospy.ServiceProxy('/mavros/mission/clear', WaypointClear)
+            clear_service()
+            # Maybe add landing here
 
     # Arm the drone
     def arm(self):
@@ -184,3 +197,36 @@ class DroneFSM():
 
 
         return
+
+
+    def set_waypoints(self):
+        # Inputs: Gets list of waypoints from the command
+        # Outputs: Pushes the waypoints into WaypointList of MAVROS to the vehicle
+        # Format of Waypoints:
+            # waypoint = Waypoint()
+            # waypoint.frame = 3  # Global frame
+            # waypoint.command = mavutil.mavlink.MAV_CMD_NAV_WAYPOINT
+            # waypoint.is_current = False
+            # waypoint.autocontinue = True
+            # waypoint.param1 = 0  # Hold time at waypoint in seconds
+            # waypoint.param2 = 0  # Acceptance radius in meters
+            # waypoint.param3 = 0  # Pass through waypoint if set to 1
+            # waypoint.param4 = 0  # Yaw angle in radians
+            # waypoint.x_lat = latitude  # Latitude in degrees
+            # waypoint.y_long = longitude  # Longitude in degrees
+            # waypoint.z_alt = altitude  # Altitude in meters
+
+        waypoint1 = 1
+        waypoint2 = 2
+        waypoint3 = 3
+
+        self.waypoint_list.waypoints = [waypoint1, waypoint2, waypoint3]
+        self.waypoint_client(start_index=0, waypoints= self.waypoint_list.waypoints)
+        pass
+
+
+    def set_waypoint_mode(self):
+        # TODO should be set to guided or AUTO.mission see MAV_MODE
+        self.set_mode_client(custom_mode='AUTO')
+
+
