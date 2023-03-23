@@ -34,7 +34,7 @@ class DroneFSM():
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
         rospy.Subscriber('/mavros/state', State, self.state_callback)
         rospy.Subscriber('/mavros/odometry/out', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
-
+        
     
     # Callback for the state subscriber
     def state_callback(self, state):
