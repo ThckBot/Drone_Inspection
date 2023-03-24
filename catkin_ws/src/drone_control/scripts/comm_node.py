@@ -99,6 +99,29 @@ def comm_node():
             print('Comm node: Aborting...')
             drone.shutdown()
 
+        # Milestone 3 Local Test code
+        WAYPOINTS = np.empty((0,3))
+
+        # Create Test waypoints
+        pos1 = np.array([0, 0, .5])
+        pos2 = np.array([0.5, 0, .5])
+        pos3 = np.array([0.5, 1, .5])
+
+        # Arm the drone
+        drone.arm()
+        drone.takeoff(.5)
+        drone.hover_test(5)
+        
+        # Go to the positions
+        drone.nav_waypoints(pos1)
+        drone.hover_test(3)
+        drone.nav_waypoints(pos2)
+        drone.hover_test(3)
+        drone.nav_waypoints(pos3)
+        drone.hover_test(3)
+
+        drone.land()
+        drone.shutdown()
         rospy.sleep(0.2)
         
 

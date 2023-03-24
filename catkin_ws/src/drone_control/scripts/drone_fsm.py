@@ -1,5 +1,6 @@
 import rospy
 import std_msgs
+import numpy as np
 from geometry_msgs.msg import PoseStamped,TransformStamped
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State 
@@ -234,34 +235,52 @@ class DroneFSM():
         return
 
 
-    def set_waypoints(self):
+    def set_waypoints(self, way_points):
         # Inputs: Gets list of waypoints from the command
         # Outputs: Pushes the waypoints into WaypointList of MAVROS to the vehicle
         # Format of Waypoints:
-            # waypoint = Waypoint()
-            # waypoint.frame = 3  # Global frame
-            # waypoint.command = mavutil.mavlink.MAV_CMD_NAV_WAYPOINT
-            # waypoint.is_current = False
-            # waypoint.autocontinue = True
-            # waypoint.param1 = 0  # Hold time at waypoint in seconds
-            # waypoint.param2 = 0  # Acceptance radius in meters
-            # waypoint.param3 = 0  # Pass through waypoint if set to 1
-            # waypoint.param4 = 0  # Yaw angle in radians
-            # waypoint.x_lat = latitude  # Latitude in degrees
-            # waypoint.y_long = longitude  # Longitude in degrees
-            # waypoint.z_alt = altitude  # Altitude in meters
 
-        waypoint1 = 1
-        waypoint2 = 2
-        waypoint3 = 3
+        # for wp in way_points:
+        #     waypoint = Waypoint()
+        #     waypoint.frame = 3  # Global frame
+        #     waypoint.command = mavutil.mavlink.MAV_CMD_NAV_WAYPOINT
+        #     waypoint.is_current = False
+        #     waypoint.autocontinue = True
+        #     waypoint.param1 = 0  # Hold time at waypoint in seconds
+        #     waypoint.param2 = 0  # Acceptance radius in meters
+        #     waypoint.param3 = 0  # Pass through waypoint if set to 1
+        #     waypoint.param4 = 0  # Yaw angle in radians
+        #     waypoint.x_lat = latitude  # Latitude in degrees
+        #     waypoint.y_long = longitude  # Longitude in degrees
+        #     waypoint.z_alt = altitude  # Altitude in meters
+            
+        #     self.waypoint_list.waypoints.append(waypoint)
 
-        self.waypoint_list.waypoints = [waypoint1, waypoint2, waypoint3]
-        self.waypoint_client(start_index=0, waypoints= self.waypoint_list.waypoints)
+        # self.waypoint_list.waypoints = [waypoint1, waypoint2, waypoint3]
+
+        # self.waypoint_client(start_index=0, waypoints= self.waypoint_list.waypoints)
         pass
 
 
     def set_waypoint_mode(self):
         # TODO should be set to guided or AUTO.mission see MAV_MODE
         self.set_mode_client(custom_mode='AUTO')
+
+
+    def nav_waypoints(self, wp_next):
+
+        while not rospy.is_shutdown():
+            self.publish_setpoint(self, wp_next, yaw = 0)
+            accum = 0 
+            accum += (self.position.x - wp_next[0])**2
+            accum += (self.position.y - wp_next[1])**2
+            accum += (self.position.z - wp_next[2])**2
+            accum = sqrt(accum)
+
+            if accum < 0.1:
+                break
+
+            
+
 
 
