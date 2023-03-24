@@ -1,7 +1,7 @@
 import rospy
 import std_msgs
 import numpy as np
-from geometry_msgs.msg import PoseStamped,TransformStamped
+from geometry_msgs.msg import PoseStamped,TransformStamped, Point
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State 
 from mavros_msgs.srv import CommandBool, SetMode
@@ -269,8 +269,13 @@ class DroneFSM():
 
     def nav_waypoints(self, wp_next):
 
+        waypoint_pose = Point()
+        waypoint_pose.x = wp_next[0]
+        waypoint_pose.y = wp_next[1]
+        waypoint_pose.z = wp_next[2]
+
         while not rospy.is_shutdown():
-            self.publish_setpoint(wp_next, yaw = 0)
+            self.publish_setpoint(waypoint_pose, yaw = 0)
             accum = 0 
             accum += (self.position.x - wp_next[0])**2
             accum += (self.position.y - wp_next[1])**2
