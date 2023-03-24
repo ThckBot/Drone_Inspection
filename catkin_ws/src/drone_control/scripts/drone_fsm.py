@@ -1,6 +1,6 @@
 import rospy
 import std_msgs
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped,TransformStamped
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State 
 from mavros_msgs.srv import CommandBool, SetMode
@@ -17,16 +17,15 @@ import time
 
 #Drone FSM Class
 class DroneFSM():
-    def __init__(self):
+    def __init__(self, vicon=False):
         # fill in
         self.position = None
         self.orientation = None
         # self.lin_vel = None
         # self.ang_vel = None
         self.state = State()
-        self.sp = Odometry()
+        
         self.fsm_state = -1
-        self.sp_pos = self.sp.pose.pose.position
 
         self.hz = 10
         self.rate = rospy.Rate(self.hz) # Hz
@@ -35,14 +34,22 @@ class DroneFSM():
         self.setpoint_publisher = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
         self.arming_client = rospy.ServiceProxy('/mavros/cmd/arming', CommandBool)
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
+
         rospy.Subscriber('/mavros/state', State, self.state_callback)
-        rospy.Subscriber('/mavros/odometry/out', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
         rospy.Subscriber('/mavros/mission/reached', WaypointReached, self.waypoint_reached_callback)
         
         # Waypoint Subscriber and Publishers
         self.waypoint_client = rospy.ServiceProxy('/mavros/mission/push', WaypointPush)
         self.waypoints = WaypointList() # Initialize list of waypoints
         # TODO Confirm if we are receiving waypoints in format of mavros_msgs/Waypoint Message
+        if vicon:
+            self.sp = TransformStamped()
+            self.sp_pos = self.sp.transform.translation
+            rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_callback, queue_size=10)
+        else:
+            self.sp = Odometry()
+            self.sp_pos = self.sp.pose.pose.position
+            rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
 
     # Callback for the state subscriber
     def state_callback(self, state):
@@ -62,6 +69,13 @@ class DroneFSM():
             clear_service = rospy.ServiceProxy('/mavros/mission/clear', WaypointClear)
             clear_service()
             # Maybe add landing here
+    # Callback for the pose subscriber
+    def vicon_callback(self, pose_msg):
+        # has x,y,z
+        self.position = pose_msg.transform.translation
+        # quaternion
+        self.orientation = pose_msg.transform.rotation
+
 
     # Arm the drone
     def arm(self):
@@ -108,7 +122,7 @@ class DroneFSM():
     # De-arm drone and shut down
     def shutdown(self):
         print("Inside Shutdown")
-        while (self.state.armed or self.state.mode == "OFFBOARD") and self.fsm_state == 4:
+        while (self.state.armed or self.state.mode == "OFFBOARD"):
             if self.state.armed:
                 print("Disarming")
                 self.arming_client(False)
@@ -129,7 +143,8 @@ class DroneFSM():
             self.rate.sleep()
         self.sp_pos = self.position
         print("Height is: ", height)
-        print("self.position.z is: ", self.position.z)
+        print("self.orientation is: ", self.orientation)
+        print("self.position.z is: ", self.position)
         print(rospy.is_shutdown())
         while self.position.z < height -0.02 and not rospy.is_shutdown():
             #print(self.state.armed)
@@ -149,7 +164,27 @@ class DroneFSM():
         t0 = time.time()
         self.sp_pos = self.position
         index = 0
-        while (not rospy.is_shutdown()) and self.fsm_state == 0:
+        while (not rospy.is_shutdown()) and self.fsm_state == 'Launch':
+            t = time.time()
+            if index >= 20:
+                print('time: ', t-t0)
+                print("orientation is: ", self.orientation)
+                print("position is: ", self.position)
+                index = 0
+            
+            index = index + 1
+
+            # Update timestamp and publish sp 
+            self.publish_setpoint(self.sp_pos)
+            self.rate.sleep()
+
+    def hover_test(self, hover_time):
+        print('Position holding...')
+        t0 = time.time()
+        self.sp_pos = self.position
+        index = 0
+        t = time.time()
+        while (not rospy.is_shutdown()) and hover_time >= t-t0:
             t = time.time()
             if index >= 20:
                 print('time: ', t-t0)
@@ -166,7 +201,7 @@ class DroneFSM():
     def land(self):
         print("Landing...")
         self.sp_pos = self.position
-        while (self.position.z > 0.01) and self.fsm_state == 3:
+        while (self.position.z > 0.01):
             print(self.position.z)
             self.sp_pos.z = self.position.z - 0.10
             self.publish_setpoint(self.sp_pos)
@@ -179,7 +214,7 @@ class DroneFSM():
         return
 
     # Publish set point
-    def publish_setpoint(self, setpoint, yaw = -np.pi/2):
+    def publish_setpoint(self, setpoint, yaw = 0):
         sp = PoseStamped()
         sp.pose.position.x = setpoint.x
         sp.pose.position.y = setpoint.y

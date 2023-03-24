@@ -1,35 +1,39 @@
-#!/usr/bin/env python
+import numpy as np
 import rospy
 from drone_fsm import *
+from geometry_msgs.msg import PoseArray
 from std_srvs.srv import Empty, EmptyResponse
 
-rospy.init_node('rob498_drone_11', anonymous=True)
-drone = DroneFSM()
+STATE = 'Init'
+WAYPOINTS = None
+WAYPOINTS_RECEIVED = False
 
+drone = DroneFSM(vicon=True)
 
 # Callback handlers
 def handle_launch():
-    global drone
-    print('Launch Requested. Your drone should take off.')
-    # For milestone 2 we are going to set heigh manually as 1.5m as per spec
-    drone.fsm_state = 0
+    global STATE
+    STATE = 'Launch'
+    drone.fsm_state = STATE
+    print('Launch Requested.')
 
 def handle_test():
-    global drone
-    print('Test Requested. Your drone should perform the required tasks. Recording starts now.')
-    # Want to hover in place for 30 seconds for milestone 2
-    
+    global STATE
+    STATE = 'Test'
+    drone.fsm_state = STATE
+    print('Test Requested.')
 
 def handle_land():
-    global drone
-    print('Land Requested. Your drone should land.')
-    drone.fsm_state = 3
+    global STATE
+    STATE = 'Land'
+    drone.fsm_state = STATE
+    print('Land Requested.')
 
 def handle_abort():
-    global drone
-    print('Abort Requested. Your drone should land immediately due to safety considerations')
-    drone.fsm_state = 4
-    #DronePlanner
+    global STATE
+    STATE = 'Abort'
+    drone.fsm_state = STATE
+    print('Abort Requested.')
 
 # Service callbacks
 def callback_launch(request):
@@ -48,40 +52,59 @@ def callback_abort(request):
     handle_abort()
     return EmptyResponse()
 
-# Main communication node for ground control
+def callback_waypoints(msg):
+    global WAYPOINTS_RECEIVED, WAYPOINTS
+    if WAYPOINTS_RECEIVED:
+        return
+    print('Waypoints Received')
+    WAYPOINTS_RECEIVED = True
+    WAYPOINTS = np.empty((0,3))
+    for pose in msg.poses:
+        pos = np.array([pose.position.x, pose.position.y, pose.position.z])
+        WAYPOINTS = np.vstack((WAYPOINTS, pos))
+
+# Main node
 def comm_node():
-    global drone
+    global STATE, WAYPOINTS, WAYPOINTS_RECEIVED
+
+    # Do not change the node name and service topics!
+    name = 'rob498_drone_11'  # Change 00 to your team ID
+    rospy.init_node(name) 
+    srv_launch = rospy.Service(name+'/comm/launch', Empty, callback_launch)
+    srv_test = rospy.Service(name+'/comm/test', Empty, callback_test)
+    srv_land = rospy.Service(name+'/comm/land', Empty, callback_land)
+    srv_abort = rospy.Service(name+'/comm/abort', Empty, callback_abort)
+
+    sub_waypoints = rospy.Subscriber(name+'/comm/waypoints', PoseArray, callback_waypoints)
+
     print('This is a dummy drone node to test communication with the ground control')
-    print('node_name should be rob498_drone_TeamID. Service topics should follow the name convention below')
-    print('The TAs will test these service calls prior to flight')
-    print('Your own code should be integrated into this node')
-    
-    node_name = 'rob498_drone_11' 
-    srv_launch = rospy.Service(node_name + '/comm/launch', Empty, callback_launch)
-    srv_test = rospy.Service(node_name + '/comm/test', Empty, callback_test)
-    srv_land = rospy.Service(node_name + '/comm/land', Empty, callback_land)
-    srv_abort = rospy.Service(node_name + '/comm/abort', Empty, callback_abort)
 
-    # Your code goes below
-    
+    while not rospy.is_shutdown():
+        if WAYPOINTS_RECEIVED:
+            print('Waypoints:\n', WAYPOINTS)
 
-    ## MILESTONE 2 ##
-    while True:
-        if drone.fsm_state == 0:
+        # Your code goes here
+        if STATE == 'Launch':
+            print('Comm node: Launching...')
             drone.arm()
-            drone.takeoff(1.4)
+            drone.takeoff(.5)
             drone.hover()
-        if drone.fsm_state == 3:
+        elif STATE == 'Test':
+            print('Comm node: Testing...')
+            drone.hover_test()
+        elif STATE == 'Land':
+            print('Comm node: Landing...')
             drone.land()
-        if drone.fsm_state == 4:
+        elif STATE == 'Abort':
+            print('Comm node: Aborting...')
             drone.shutdown()
 
+        rospy.sleep(0.2)
+        
 
-if __name__ == '__main__':
-    try:
-        comm_node()
-        rospy.spin()
-    except rospy.ROSInterruptException:
-        print("didnt make it in comm_node")
+if __name__ == '__main__':	
+    try:	
+        comm_node()	
+    except rospy.ROSInterruptException:	
+        print("didnt make it in comm_node")	
         pass
-    
