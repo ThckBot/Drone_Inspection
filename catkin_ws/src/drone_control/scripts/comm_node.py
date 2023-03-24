@@ -1,14 +1,16 @@
+#!/usr/bin/env python
 import numpy as np
 import rospy
 from drone_fsm import *
 from geometry_msgs.msg import PoseArray
 from std_srvs.srv import Empty, EmptyResponse
 
+rospy.init_node('rob498_drone_11', anonymous=True)
 STATE = 'Init'
 WAYPOINTS = None
 WAYPOINTS_RECEIVED = False
 
-drone = DroneFSM(vicon=True)
+drone = DroneFSM(vicon=False)
 
 # Callback handlers
 def handle_launch():
@@ -68,8 +70,7 @@ def comm_node():
     global STATE, WAYPOINTS, WAYPOINTS_RECEIVED
 
     # Do not change the node name and service topics!
-    name = 'rob498_drone_11'  # Change 00 to your team ID
-    rospy.init_node(name) 
+    name = 'rob498_drone_11'
     srv_launch = rospy.Service(name+'/comm/launch', Empty, callback_launch)
     srv_test = rospy.Service(name+'/comm/test', Empty, callback_test)
     srv_land = rospy.Service(name+'/comm/land', Empty, callback_land)
@@ -103,23 +104,25 @@ def comm_node():
         WAYPOINTS = np.empty((0,3))
 
         # Create Test waypoints
-        pos1 = np.array([0, 0, .5])
-        pos2 = np.array([0.5, 0, .5])
-        pos3 = np.array([0.5, 1, .5])
+        pos1 = np.array([0, 0, 0.25])
+        pos2 = np.array([1, 0, 0.25])
+        pos3 = np.array([1, 1, 0.25])
 
         # Arm the drone
         drone.arm()
-        drone.takeoff(.5)
+        drone.takeoff(0.25)
         drone.hover_test(5)
         
         # Go to the positions
+        print("Moving to waypoint 1\n")
         drone.nav_waypoints(pos1)
-        drone.hover_test(3)
+        drone.hover_test(5)
+        print("Moving to waypoint 2\n")
         drone.nav_waypoints(pos2)
-        drone.hover_test(3)
+        drone.hover_test(5)
+        print("Moving to waypoint 3\n")
         drone.nav_waypoints(pos3)
-        drone.hover_test(3)
-
+        drone.hover_test(5)
         drone.land()
         drone.shutdown()
         rospy.sleep(0.2)

@@ -270,13 +270,14 @@ class DroneFSM():
     def nav_waypoints(self, wp_next):
 
         while not rospy.is_shutdown():
-            self.publish_setpoint(self, wp_next, yaw = 0)
+            self.publish_setpoint(wp_next, yaw = 0)
             accum = 0 
             accum += (self.position.x - wp_next[0])**2
             accum += (self.position.y - wp_next[1])**2
             accum += (self.position.z - wp_next[2])**2
             accum = sqrt(accum)
-
+            print("self.position is: ", self.position)
+            print("desired waypoint: ", wp_next)
             if accum < 0.1:
                 break
 
