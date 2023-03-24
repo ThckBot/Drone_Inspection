@@ -80,52 +80,54 @@ def comm_node():
 
     print('This is a dummy drone node to test communication with the ground control')
 
-    while not rospy.is_shutdown():
-        if WAYPOINTS_RECEIVED:
-            print('Waypoints:\n', WAYPOINTS)
+    # Milestone 3 Local Test code
+    WAYPOINTS = np.empty((0,3))
 
-        # Your code goes here
-        if STATE == 'Launch':
-            print('Comm node: Launching...')
-            drone.arm()
-            drone.takeoff(.5)
-            drone.hover()
-        elif STATE == 'Test':
-            print('Comm node: Testing...')
-            drone.hover_test()
-        elif STATE == 'Land':
-            print('Comm node: Landing...')
-            drone.land()
-        elif STATE == 'Abort':
-            print('Comm node: Aborting...')
-            drone.shutdown()
+    # Create Test waypoints
+    pos1 = np.array([0, 0, 0.25])
+    pos2 = np.array([1, 0, 0.25])
+    pos3 = np.array([1, 1, 0.25])
 
-        # Milestone 3 Local Test code
-        WAYPOINTS = np.empty((0,3))
+    # Arm the drone
+    drone.arm()
+    drone.takeoff(0.25)
+    drone.hover_test(5)
+    
+    # Go to the positions
+    print("Moving to waypoint 1\n")
+    drone.nav_waypoints(pos1)
+    drone.hover_test(5)
+    print("Moving to waypoint 2\n")
+    drone.nav_waypoints(pos2)
+    drone.hover_test(5)
+    print("Moving to waypoint 3\n")
+    drone.nav_waypoints(pos3)
+    drone.hover_test(5)
+    drone.land()
+    drone.shutdown()
+    rospy.sleep(0.2)
 
-        # Create Test waypoints
-        pos1 = np.array([0, 0, 0.25])
-        pos2 = np.array([1, 0, 0.25])
-        pos3 = np.array([1, 1, 0.25])
+    # while not rospy.is_shutdown():
+    #     if WAYPOINTS_RECEIVED:
+    #         print('Waypoints:\n', WAYPOINTS)
 
-        # Arm the drone
-        drone.arm()
-        drone.takeoff(0.25)
-        drone.hover_test(5)
-        
-        # Go to the positions
-        print("Moving to waypoint 1\n")
-        drone.nav_waypoints(pos1)
-        drone.hover_test(5)
-        print("Moving to waypoint 2\n")
-        drone.nav_waypoints(pos2)
-        drone.hover_test(5)
-        print("Moving to waypoint 3\n")
-        drone.nav_waypoints(pos3)
-        drone.hover_test(5)
-        drone.land()
-        drone.shutdown()
-        rospy.sleep(0.2)
+    #     # Your code goes here
+    #     if STATE == 'Launch':
+    #         print('Comm node: Launching...')
+    #         drone.arm()
+    #         drone.takeoff(.5)
+    #         drone.hover()
+    #     elif STATE == 'Test':
+    #         print('Comm node: Testing...')
+    #         drone.hover_test()
+    #     elif STATE == 'Land':
+    #         print('Comm node: Landing...')
+    #         drone.land()
+    #     elif STATE == 'Abort':
+    #         print('Comm node: Aborting...')
+    #         drone.shutdown()
+
+    
         
 
 if __name__ == '__main__':	
