@@ -1,10 +1,13 @@
 import rospy
 import std_msgs
+import numpy as np
 from geometry_msgs.msg import PoseStamped,TransformStamped
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State 
 from mavros_msgs.srv import CommandBool, SetMode
 from tf.transformations import *
+from mavros_msgs.msg import Waypoint, WaypointList, WaypointReached
+from mavros_msgs.srv import WaypointPush, WaypointPushRequest, WaypointClear, WaypointClearRequest
 import message_filters
 
 from math import *
@@ -15,7 +18,7 @@ import time
 
 #Drone FSM Class
 class DroneFSM():
-    def __init__(self,vicon=False):
+    def __init__(self, vicon=False):
         # fill in
         self.position = None
         self.orientation = None
@@ -32,8 +35,14 @@ class DroneFSM():
         self.setpoint_publisher = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
         self.arming_client = rospy.ServiceProxy('/mavros/cmd/arming', CommandBool)
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
-        self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
+
         rospy.Subscriber('/mavros/state', State, self.state_callback)
+        rospy.Subscriber('/mavros/mission/reached', WaypointReached, self.waypoint_reached_callback)
+        
+        # Waypoint Subscriber and Publishers
+        self.waypoint_client = rospy.ServiceProxy('/mavros/mission/push', WaypointPush)
+        self.waypoints = WaypointList() # Initialize list of waypoints
+        # TODO Confirm if we are receiving waypoints in format of mavros_msgs/Waypoint Message
         if vicon:
             self.sp = TransformStamped()
             self.sp_pos = self.sp.transform.translation
@@ -43,7 +52,6 @@ class DroneFSM():
             self.sp_pos = self.sp.pose.pose.position
             rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
 
-    
     # Callback for the state subscriber
     def state_callback(self, state):
         self.state = state
@@ -56,6 +64,12 @@ class DroneFSM():
         # self.lin_vel = pose_msg.twist.twist.linear
         # self.ang_vel = pose_msg.twist.twist.angular
 
+    def waypoint_reached_callback(self, msg):
+        if msg.wp_seq == len(self.waypoints.waypoints) - 1:
+            # The last waypoint has been reached
+            clear_service = rospy.ServiceProxy('/mavros/mission/clear', WaypointClear)
+            clear_service()
+            # Maybe add landing here
     # Callback for the pose subscriber
     def vicon_callback(self, pose_msg):
         # has x,y,z
@@ -109,7 +123,7 @@ class DroneFSM():
     # De-arm drone and shut down
     def shutdown(self):
         print("Inside Shutdown")
-        while (self.state.armed or self.state.mode == "OFFBOARD") and self.fsm_state == 4:
+        while (self.state.armed or self.state.mode == "OFFBOARD"):
             if self.state.armed:
                 print("Disarming")
                 self.arming_client(False)
@@ -151,7 +165,7 @@ class DroneFSM():
         t0 = time.time()
         self.sp_pos = self.position
         index = 0
-        while (not rospy.is_shutdown()) and self.fsm_state == 0:
+        while (not rospy.is_shutdown()) and self.fsm_state == 'Launch':
             t = time.time()
             if index >= 20:
                 print('time: ', t-t0)
@@ -188,7 +202,7 @@ class DroneFSM():
     def land(self):
         print("Landing...")
         self.sp_pos = self.position
-        while (self.position.z > 0.01) and self.fsm_state == 3:
+        while (self.position.z > 0.01):
             print(self.position.z)
             self.sp_pos.z = self.position.z - 0.10
             self.publish_setpoint(self.sp_pos)
@@ -219,3 +233,54 @@ class DroneFSM():
 
 
         return
+
+
+    def set_waypoints(self, way_points):
+        # Inputs: Gets list of waypoints from the command
+        # Outputs: Pushes the waypoints into WaypointList of MAVROS to the vehicle
+        # Format of Waypoints:
+
+        # for wp in way_points:
+        #     waypoint = Waypoint()
+        #     waypoint.frame = 3  # Global frame
+        #     waypoint.command = mavutil.mavlink.MAV_CMD_NAV_WAYPOINT
+        #     waypoint.is_current = False
+        #     waypoint.autocontinue = True
+        #     waypoint.param1 = 0  # Hold time at waypoint in seconds
+        #     waypoint.param2 = 0  # Acceptance radius in meters
+        #     waypoint.param3 = 0  # Pass through waypoint if set to 1
+        #     waypoint.param4 = 0  # Yaw angle in radians
+        #     waypoint.x_lat = latitude  # Latitude in degrees
+        #     waypoint.y_long = longitude  # Longitude in degrees
+        #     waypoint.z_alt = altitude  # Altitude in meters
+            
+        #     self.waypoint_list.waypoints.append(waypoint)
+
+        # self.waypoint_list.waypoints = [waypoint1, waypoint2, waypoint3]
+
+        # self.waypoint_client(start_index=0, waypoints= self.waypoint_list.waypoints)
+        pass
+
+
+    def set_waypoint_mode(self):
+        # TODO should be set to guided or AUTO.mission see MAV_MODE
+        self.set_mode_client(custom_mode='AUTO')
+
+
+    def nav_waypoints(self, wp_next):
+
+        while not rospy.is_shutdown():
+            self.publish_setpoint(self, wp_next, yaw = 0)
+            accum = 0 
+            accum += (self.position.x - wp_next[0])**2
+            accum += (self.position.y - wp_next[1])**2
+            accum += (self.position.z - wp_next[2])**2
+            accum = sqrt(accum)
+
+            if accum < 0.1:
+                break
+
+            
+
+
+
