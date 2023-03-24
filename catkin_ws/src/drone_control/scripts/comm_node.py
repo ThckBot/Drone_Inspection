@@ -4,7 +4,7 @@ from drone_fsm import *
 from std_srvs.srv import Empty, EmptyResponse
 
 rospy.init_node('rob498_drone_11', anonymous=True)
-drone = DroneFSM()
+drone = DroneFSM(vicon=True)
 
 
 # Callback handlers
@@ -64,7 +64,7 @@ def comm_node():
 
     # Your code goes below
     drone.arm()
-    drone.takeoff(1.4)
+    drone.takeoff(.5)
     drone.hover_test(10)
     drone.land()
     drone.shutdown()

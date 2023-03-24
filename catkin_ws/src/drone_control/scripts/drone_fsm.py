@@ -1,6 +1,6 @@
 import rospy
 import std_msgs
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped,TransformStamped
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State 
 from mavros_msgs.srv import CommandBool, SetMode
@@ -15,16 +15,15 @@ import time
 
 #Drone FSM Class
 class DroneFSM():
-    def __init__(self):
+    def __init__(self,vicon=False):
         # fill in
         self.position = None
         self.orientation = None
         # self.lin_vel = None
         # self.ang_vel = None
         self.state = State()
-        self.sp = Odometry()
+        
         self.fsm_state = -1
-        self.sp_pos = self.sp.pose.pose.position
 
         self.hz = 10
         self.rate = rospy.Rate(self.hz) # Hz
@@ -33,8 +32,16 @@ class DroneFSM():
         self.setpoint_publisher = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
         self.arming_client = rospy.ServiceProxy('/mavros/cmd/arming', CommandBool)
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
+        self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
         rospy.Subscriber('/mavros/state', State, self.state_callback)
-        rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
+        if vicon:
+            self.sp = TransformStamped()
+            self.sp_pos = self.sp.transform.translation
+            rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_callback, queue_size=10)
+        else:
+            self.sp = Odometry()
+            self.sp_pos = self.sp.pose.pose.position
+            rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
 
     
     # Callback for the state subscriber
@@ -48,6 +55,13 @@ class DroneFSM():
         self.orientation = pose_msg.pose.pose.orientation
         # self.lin_vel = pose_msg.twist.twist.linear
         # self.ang_vel = pose_msg.twist.twist.angular
+
+    # Callback for the pose subscriber
+    def vicon_callback(self, pose_msg):
+        # has x,y,z
+        self.position = pose_msg.transform.translation
+        # quaternion
+        self.orientation = pose_msg.transform.rotation
 
 
     # Arm the drone
@@ -116,7 +130,8 @@ class DroneFSM():
             self.rate.sleep()
         self.sp_pos = self.position
         print("Height is: ", height)
-        print("self.position.z is: ", self.position.z)
+        print("self.orientation is: ", self.orientation)
+        print("self.position.z is: ", self.position)
         print(rospy.is_shutdown())
         while self.position.z < height -0.02 and not rospy.is_shutdown():
             #print(self.state.armed)
@@ -140,6 +155,8 @@ class DroneFSM():
             t = time.time()
             if index >= 20:
                 print('time: ', t-t0)
+                print("orientation is: ", self.orientation)
+                print("position is: ", self.position)
                 index = 0
             
             index = index + 1
