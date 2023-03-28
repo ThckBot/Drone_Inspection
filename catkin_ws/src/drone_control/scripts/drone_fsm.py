@@ -59,12 +59,6 @@ class DroneFSM():
             # Set up vicon transformation
             rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_callback, queue_size=10)
 
-            # TODO: Create our transformation
-
-            # TODO: rotation
-
-            # TODO: translation
-
         else:
             self.sp = Odometry()
             self.sp_pos = self.sp.pose.pose.position
