@@ -22,6 +22,8 @@ class DroneFSM():
         # fill in
         self.position = None
         self.orientation = None
+        self.vicon_position = None
+        self.vicon_orientation = None
         # self.lin_vel = None
         # self.ang_vel = None
         self.state = State()
@@ -42,15 +44,29 @@ class DroneFSM():
         # Waypoint Subscriber and Publishers
         self.waypoint_client = rospy.ServiceProxy('/mavros/mission/push', WaypointPush)
         self.waypoints = WaypointList() # Initialize list of waypoints
-        # TODO Confirm if we are receiving waypoints in format of mavros_msgs/Waypoint Message
+
+        self.vicon_transform = np.identity(4) # Default transform is all 1s
         if vicon:
-            self.sp = TransformStamped()
-            self.sp_pos = self.sp.transform.translation
+            # Set up normal position stuff
+            self.sp = Odometry()
+            self.sp_pos = self.sp.pose.pose.position
+            rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)
+            #self.sp = TransformStamped()
+            #self.sp_pos = self.sp.transform.translation
+
+            # Set up vicon transformation
             rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_callback, queue_size=10)
+
+            # TODO: Create our transformation
+
+            # TODO: rotation
+
+            # TODO: translation
+
         else:
             self.sp = Odometry()
             self.sp_pos = self.sp.pose.pose.position
-            rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)x
+            rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)
 
     # Callback for the state subscriber
     def state_callback(self, state):
@@ -73,9 +89,9 @@ class DroneFSM():
     # Callback for the pose subscriber
     def vicon_callback(self, pose_msg):
         # has x,y,z
-        self.position = pose_msg.transform.translation
+        self.vicon_position = pose_msg.transform.translation
         # quaternion
-        self.orientation = pose_msg.transform.rotation
+        self.vicon_orientation = pose_msg.transform.rotation
 
 
     # Arm the drone
@@ -267,14 +283,20 @@ class DroneFSM():
         self.set_mode_client(custom_mode='AUTO')
 
 
-    def nav_waypoints(self, wp_next):
+    def nav_waypoints(self, wp_next, transform = False):
 
+        # Set up waypoints without transformation
         waypoint_pose = Point()
         waypoint_pose.x = wp_next[0]
         waypoint_pose.y = wp_next[1]
         waypoint_pose.z = wp_next[2]
 
-        while not rospy.is_shutdown():
+        if transform == True:
+            # TODO: transform waypoint from Vicon frame into drone frame
+            pass
+
+        # Drive drone to waypoint
+        while not rospy.is_shutdown() and self.fsm_state == 'Waypoints':
             self.publish_setpoint(waypoint_pose, yaw = 0)
             accum = 0 
             accum += (self.position.x - wp_next[0])**2

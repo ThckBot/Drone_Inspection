@@ -107,25 +107,30 @@ def comm_node():
     drone.shutdown()
     rospy.sleep(0.2)
 
-    # while not rospy.is_shutdown():
-    #     if WAYPOINTS_RECEIVED:
-    #         print('Waypoints:\n', WAYPOINTS)
-
-    #     # Your code goes here
-    #     if STATE == 'Launch':
-    #         print('Comm node: Launching...')
-    #         drone.arm()
-    #         drone.takeoff(.5)
-    #         drone.hover()
-    #     elif STATE == 'Test':
-    #         print('Comm node: Testing...')
-    #         drone.hover_test()
-    #     elif STATE == 'Land':
-    #         print('Comm node: Landing...')
-    #         drone.land()
-    #     elif STATE == 'Abort':
-    #         print('Comm node: Aborting...')
-    #         drone.shutdown()
+    while not rospy.is_shutdown():
+        if WAYPOINTS_RECEIVED:
+            STATE = 'Waypoints'
+            drone.fsm_state = STATE
+            print('Waypoints:\n', WAYPOINTS)
+            for waypt in WAYPOINTS:
+                drone.nav_waypoints(waypt, transform = True) # navigate to waypoint
+            drone.hover() # hover after finishing waypoints
+            
+        # Your code goes here
+        if STATE == 'Launch':
+            print('Comm node: Launching...')
+            drone.arm()
+            drone.takeoff(.5)
+            drone.hover()
+        elif STATE == 'Test':
+            print('Comm node: Testing...')
+            drone.hover_test()
+        elif STATE == 'Land':
+            print('Comm node: Landing...')
+            drone.land()
+        elif STATE == 'Abort':
+            print('Comm node: Aborting...')
+            drone.shutdown()
 
     
         
