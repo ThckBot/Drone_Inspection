@@ -1,4 +1,5 @@
 import rospy
+import tf
 import std_msgs
 import numpy as np
 from geometry_msgs.msg import PoseStamped,TransformStamped, Point
@@ -24,8 +25,9 @@ class DroneFSM():
         self.orientation = None
         self.vicon_position = None
         self.vicon_orientation = None
-        # self.lin_vel = None
-        # self.ang_vel = None
+        
+        self.transformation_matrix = None
+
         self.state = State()
         
         self.fsm_state = -1
@@ -77,8 +79,6 @@ class DroneFSM():
     def pose_callback(self, pose_msg):
         self.position = pose_msg.pose.pose.position
         self.orientation = pose_msg.pose.pose.orientation
-        # self.lin_vel = pose_msg.twist.twist.linear
-        # self.ang_vel = pose_msg.twist.twist.angular
 
     def waypoint_reached_callback(self, msg):
         if msg.wp_seq == len(self.waypoints.waypoints) - 1:
@@ -86,6 +86,7 @@ class DroneFSM():
             clear_service = rospy.ServiceProxy('/mavros/mission/clear', WaypointClear)
             clear_service()
             # Maybe add landing here
+
     # Callback for the pose subscriber
     def vicon_callback(self, pose_msg):
         # has x,y,z
@@ -133,6 +134,24 @@ class DroneFSM():
             
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
+
+        # Create transformation matrix here
+        # TODO verify if right location - do we have self.position and self.vicon_position already?
+        # Assuming we know the vicon and point locations from self.position
+            
+        # Create transform objects
+        t1 = tf.Transform(self.orientation,
+                        tf.Vector3(*self.position))
+        t2 = tf.Transform(self.vicon_orientation,
+                        tf.Vector3(*self.vicon_position))
+
+        # Compute relative transform
+        relative_transform = t1.inverse() * t2
+
+        # Get transformation matrix as a numpy array
+        self.transformation_matrix = relative_transform.as_matrix()
+
+        print(self.transformation_matrix)
 
         return
     
@@ -292,8 +311,10 @@ class DroneFSM():
         waypoint_pose.z = wp_next[2]
 
         if transform == True:
-            # TODO: transform waypoint from Vicon frame into drone frame
-            pass
+            # Transform waypoint from Vicon frame into drone frame
+                    
+            # Apply transform to each point
+            waypoint_pose = self.transformation_matrix * waypoint_pose
 
         # Drive drone to waypoint
         while not rospy.is_shutdown() and self.fsm_state == 'Waypoints':
