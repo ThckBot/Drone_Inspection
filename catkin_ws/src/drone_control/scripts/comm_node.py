@@ -90,16 +90,11 @@ def comm_node():
 
     # Arm the drone
     drone.arm()
-<<<<<<< HEAD
-    drone.takeoff(0.25)
-    drone.hover_test(5)
-=======
     rospy.sleep(1.)
     drone.takeoff(0.5) # m
     drone.shutdown()
     #drone.hover(10.0) # s
     #drone.land()
->>>>>>> cathy_dev
     
     # Go to the positions
     print("Moving to waypoint 1\n")
@@ -149,7 +144,4 @@ if __name__ == '__main__':
     except rospy.ROSInterruptException:	
         print("didnt make it in comm_node")	
         pass
-<<<<<<< HEAD
-=======
     
->>>>>>> cathy_dev
