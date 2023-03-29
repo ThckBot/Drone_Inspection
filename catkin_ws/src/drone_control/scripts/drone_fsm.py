@@ -2,6 +2,7 @@ import rospy
 import tf
 import std_msgs
 import numpy as np
+from scipy.spatial.transform import Rotation
 from geometry_msgs.msg import PoseStamped,TransformStamped, Point
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State 
@@ -29,7 +30,7 @@ class DroneFSM():
         self.ekf_position = None
         self.ekf_orientation = None
         
-        self.transformation_matrix = None
+        self.vicon_transform = np.identity(4) # Default transform is all 1s
 
         self.state = State()
         
@@ -45,7 +46,6 @@ class DroneFSM():
 
         rospy.Subscriber('/mavros/state', State, self.state_callback)
         
-        self.vicon_transform = np.identity(4) # Default transform is all 1s
 
         # Subscribe to vicon and local_position
         rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)
@@ -77,19 +77,25 @@ class DroneFSM():
             self.vicon_orientation = pose_msg.transform.rotation
 
     def compute_vicon_to_efk_tf(self):
-        # TODO: Have to fix this, currently uses C++ Transform object
-        t1 = tf.Transform(self.orientation,
-                        tf.Vector3(*self.position))
-        t2 = tf.Transform(self.vicon_orientation,
-                        tf.Vector3(*self.vicon_position))
+        
+        r1 = Rotation.from_euler('xyz', self.orientation)
+        r2 = Rotation.from_euler('xyz', self.vicon_orientation)
+        R_matrix1 = r1.as_matrix()
+        R_matrix2 = r2.as_matrix()
 
-        # Compute relative transform
-        relative_transform = t1.inverse() * t2
+        # Get homogenous transformation matrices
+        T1 = np.eye(4)
+        T1[:3, :3] = R_matrix1
+        T1[:3, 3] = self.position
 
-        # Get transformation matrix as a numpy array
-        self.transformation_matrix = relative_transform.as_matrix()
-        print(self.transformation_matrix)
-        return
+        T2 = np.eye(4)
+        T2[:3, :3] = R_matrix2
+        T2[:3, 3] = self.vicon_position
+
+        # Compute the transformation matrix between the two poses changes from vicon to local frame
+        T21 = np.linalg.inv(T1) @ T2
+
+        return T21
 
     # Arm the drone
     def arm(self):
@@ -136,7 +142,7 @@ class DroneFSM():
         # Assuming we know the vicon and point locations from self.position
             
         # Create transform objects
-        self.compute_vicon_to_efk_tf()
+        self.vicon_transform = self.compute_vicon_to_efk_tf()
 
         return
     
@@ -295,11 +301,6 @@ class DroneFSM():
         waypoint_pose.y = wp_next[1]
         waypoint_pose.z = wp_next[2]
 
-        if transform == True:
-            # Transform waypoint from Vicon frame into drone frame
-                    
-            # Apply transform to each point
-            waypoint_pose = self.transformation_matrix * waypoint_pose
 
         # Drive drone to waypoint
         while not rospy.is_shutdown() and self.fsm_state == 'Waypoints':
