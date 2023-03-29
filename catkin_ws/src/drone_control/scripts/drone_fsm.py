@@ -62,6 +62,7 @@ class DroneFSM():
         if self.vicon:
             self.ekf_position = pose_msg.pose.pose.position
             self.ekf_orientation = pose_msg.pose.pose.orientation
+            # TODO: Compute self.position and self.orientation based on self.vicon_transform
         else:
             self.position = pose_msg.pose.pose.position
             self.orientation = pose_msg.pose.pose.orientation
@@ -76,7 +77,19 @@ class DroneFSM():
             self.vicon_orientation = pose_msg.transform.rotation
 
     def compute_vicon_to_efk_tf(self):
-        return 0
+        # TODO: Have to fix this, currently uses C++ Transform object
+        t1 = tf.Transform(self.orientation,
+                        tf.Vector3(*self.position))
+        t2 = tf.Transform(self.vicon_orientation,
+                        tf.Vector3(*self.vicon_position))
+
+        # Compute relative transform
+        relative_transform = t1.inverse() * t2
+
+        # Get transformation matrix as a numpy array
+        self.transformation_matrix = relative_transform.as_matrix()
+        print(self.transformation_matrix)
+        return
 
     # Arm the drone
     def arm(self):
@@ -118,24 +131,12 @@ class DroneFSM():
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
 
-        # MOVE THIS TO compute_vicon_to_efk_tf(self)
         # Create transformation matrix here
         # TODO verify if right location - do we have self.position and self.vicon_position already?
         # Assuming we know the vicon and point locations from self.position
             
         # Create transform objects
-        t1 = tf.Transform(self.orientation,
-                        tf.Vector3(*self.position))
-        t2 = tf.Transform(self.vicon_orientation,
-                        tf.Vector3(*self.vicon_position))
-
-        # Compute relative transform
-        relative_transform = t1.inverse() * t2
-
-        # Get transformation matrix as a numpy array
-        self.transformation_matrix = relative_transform.as_matrix()
-
-        print(self.transformation_matrix)
+        self.compute_vicon_to_efk_tf()
 
         return
     
