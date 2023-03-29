@@ -23,15 +23,18 @@ class DroneFSM():
         # fill in
         self.position = None
         self.orientation = None
+
         self.vicon_position = None
         self.vicon_orientation = None
+        self.ekf_position = None
+        self.ekf_orientation = None
         
         self.transformation_matrix = None
 
         self.state = State()
         
         self.fsm_state = -1
-
+        self.vicon = vicon
         self.hz = 10
         self.rate = rospy.Rate(self.hz) # Hz
 
@@ -41,53 +44,52 @@ class DroneFSM():
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
 
         rospy.Subscriber('/mavros/state', State, self.state_callback)
-        rospy.Subscriber('/mavros/mission/reached', WaypointReached, self.waypoint_reached_callback)
         
-        # Waypoint Subscriber and Publishers
-        self.waypoint_client = rospy.ServiceProxy('/mavros/mission/push', WaypointPush)
-        self.waypoints = WaypointList() # Initialize list of waypoints
-
         self.vicon_transform = np.identity(4) # Default transform is all 1s
-        if vicon:
-            # Set up normal position stuff
-            self.sp = Odometry()
-            self.sp_pos = self.sp.pose.pose.position
-            rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)
-            #self.sp = TransformStamped()
-            #self.sp_pos = self.sp.transform.translation
 
-            # Set up vicon transformation
-            rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_callback, queue_size=10)
+        # Subscribe to vicon and local_position
+        rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)
+        rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_callback, queue_size=10)
 
-        else:
-            self.sp = Odometry()
-            self.sp_pos = self.sp.pose.pose.position
-            rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)
+        self.sp_pos = Point()
 
-    # Callback for the state subscriber
+    # Callback for the state subscribers
     def state_callback(self, state):
         self.state = state
-        #print("self.state: ", self.state)
 
     # Callback for the pose subscriber
     def pose_callback(self, pose_msg):
-        self.position = pose_msg.pose.pose.position
-        self.orientation = pose_msg.pose.pose.orientation
-
-    def waypoint_reached_callback(self, msg):
-        if msg.wp_seq == len(self.waypoints.waypoints) - 1:
-            # The last waypoint has been reached
-            clear_service = rospy.ServiceProxy('/mavros/mission/clear', WaypointClear)
-            clear_service()
-            # Maybe add landing here
+        if self.vicon:
+            self.ekf_position = pose_msg.pose.pose.position
+            self.ekf_orientation = pose_msg.pose.pose.orientation
+            # TODO: Compute self.position and self.orientation based on self.vicon_transform
+        else:
+            self.position = pose_msg.pose.pose.position
+            self.orientation = pose_msg.pose.pose.orientation
 
     # Callback for the pose subscriber
     def vicon_callback(self, pose_msg):
-        # has x,y,z
-        self.vicon_position = pose_msg.transform.translation
-        # quaternion
-        self.vicon_orientation = pose_msg.transform.rotation
+        if self.vicon:
+            self.position = pose_msg.transform.translation
+            self.orientation = pose_msg.transform.rotation
+        else:
+            self.vicon_position = pose_msg.transform.translation
+            self.vicon_orientation = pose_msg.transform.rotation
 
+    def compute_vicon_to_efk_tf(self):
+        # TODO: Have to fix this, currently uses C++ Transform object
+        t1 = tf.Transform(self.orientation,
+                        tf.Vector3(*self.position))
+        t2 = tf.Transform(self.vicon_orientation,
+                        tf.Vector3(*self.vicon_position))
+
+        # Compute relative transform
+        relative_transform = t1.inverse() * t2
+
+        # Get transformation matrix as a numpy array
+        self.transformation_matrix = relative_transform.as_matrix()
+        print(self.transformation_matrix)
+        return
 
     # Arm the drone
     def arm(self):
@@ -134,18 +136,7 @@ class DroneFSM():
         # Assuming we know the vicon and point locations from self.position
             
         # Create transform objects
-        t1 = tf.Transform(self.orientation,
-                        tf.Vector3(*self.position))
-        t2 = tf.Transform(self.vicon_orientation,
-                        tf.Vector3(*self.vicon_position))
-
-        # Compute relative transform
-        relative_transform = t1.inverse() * t2
-
-        # Get transformation matrix as a numpy array
-        self.transformation_matrix = relative_transform.as_matrix()
-
-        print(self.transformation_matrix)
+        self.compute_vicon_to_efk_tf()
 
         return
     
@@ -324,6 +315,3 @@ class DroneFSM():
                 break
 
             
-
-
-

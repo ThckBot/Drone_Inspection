@@ -9,7 +9,11 @@ gnome-terminal --command="bash -c 'cd ~/Drone_Inspection/catkin_ws; roscore; $SH
 # Launch the px4
 sleep 5
 # gnome-terminal -- roslaunch mavros px4.launch
+<<<<<<< HEAD
 gnome-terminal --command="bash -c 'cd ~/thirdparty/vio_ws/devel/; source setup.bash; roslaunch px4_realsense_bridge bridge_mavros.launch; $SHELL'"
+=======
+gnome-terminal --command="bash -c 'cd ~/Drone_Inspection/catkin_ws; roslaunch mavros px4.launch; $SHELL'"
+>>>>>>> cathy_dev
 
 # Publish odometry pose at 100 Hz note odometry pose is 331
 # sleep 2
