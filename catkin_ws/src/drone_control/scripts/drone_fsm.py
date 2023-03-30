@@ -36,7 +36,7 @@ class DroneFSM():
         self.state = State()
         
         self.fsm_state = -1
-        self.vicon = vicon
+        self.vicon_milestones = vicon
         self.hz = 10
         self.rate = rospy.Rate(self.hz) # Hz
 
@@ -49,8 +49,8 @@ class DroneFSM():
         
 
         # Subscribe to vicon and local_position
-        rospy.Subscriber('/mavros/local_position/odom', Odometry, self.pose_callback, queue_size=10) # publishes both position and orientation (quaternion)
-        rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_callback, queue_size=10)
+        rospy.Subscriber('/mavros/local_position/odom', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
+        rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_position_callback, queue_size=10)
 
         self.sp_pos = Point()
 
@@ -59,27 +59,28 @@ class DroneFSM():
         self.state = state
 
     # Callback for the pose subscriber
-    def pose_callback(self, pose_msg):
-        if self.vicon:
+    def local_position_callback(self, pose_msg):
+        if self.vicon_milestones:
             self.ekf_position = pose_msg.pose.pose.position
             self.ekf_orientation = pose_msg.pose.pose.orientation
+            
             # TODO: Compute self.position and self.orientation based on self.vicon_transform
         else:
             self.position = pose_msg.pose.pose.position
             self.orientation = pose_msg.pose.pose.orientation
 
     # Callback for the pose subscriber
-    def vicon_callback(self, pose_msg):
-        if self.vicon:
+    def vicon_position_callback(self, pose_msg):
+        if self.vicon_milestones:
             self.position = pose_msg.transform.translation
             self.orientation = pose_msg.transform.rotation
+            
         else:
             self.vicon_position = pose_msg.transform.translation
             self.vicon_orientation = pose_msg.transform.rotation
 
-    def compute_vicon_to_efk_tf(self):
+    def compute_vicon_to_ekf_tf(self):
 
-        
         x1 = self.orientation.x
         y1 = self.orientation.x
         z1 = self.orientation.x
@@ -167,7 +168,7 @@ class DroneFSM():
         # Assuming we know the vicon and point locations from self.position
             
         # Create transform objects
-        self.vicon_transform = self.compute_vicon_to_efk_tf()
+        self.vicon_transform = self.compute_vicon_to_ekf_tf()
 
         return
     

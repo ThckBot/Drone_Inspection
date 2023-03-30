@@ -10,7 +10,7 @@ STATE = 'Init'
 WAYPOINTS = None
 WAYPOINTS_RECEIVED = False
 
-drone = DroneFSM(vicon=False)
+drone = DroneFSM(vicon=True)
 
 # Callback handlers
 def handle_launch():
