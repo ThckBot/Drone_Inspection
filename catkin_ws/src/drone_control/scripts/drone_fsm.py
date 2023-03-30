@@ -77,23 +77,48 @@ class DroneFSM():
             self.vicon_orientation = pose_msg.transform.rotation
 
     def compute_vicon_to_efk_tf(self):
+
         
-        r1 = Rotation.from_euler('xyz', self.orientation)
-        r2 = Rotation.from_euler('xyz', self.vicon_orientation)
+        x1 = self.orientation.x
+        y1 = self.orientation.x
+        z1 = self.orientation.x
+        w1 = self.orientation.x
+
+        x2 = self.vicon_orientation.x
+        y2 = self.vicon_orientation.x
+        z2 = self.vicon_orientation.x
+        w2 = self.vicon_orientation.x
+
+        px1 = self.position.x
+        py1 = self.position.y
+        pz1 = self.position.z
+
+        px2 = self.vicon_position.x
+        py2 = self.vicon_position.y
+        pz2 = self.vicon_position.z
+
+        pos1 = [px1, py1, pz1]
+        pos2 = [px2, py2, pz2]
+
+        quat1 = [x1, y1, z1, w1]
+        quat2 = [x2, y2, z2, w2]
+
+        r1 = Rotation.from_quat(quat1)
+        r2 = Rotation.from_quat(quat2)
         R_matrix1 = r1.as_matrix()
         R_matrix2 = r2.as_matrix()
 
         # Get homogenous transformation matrices
         T1 = np.eye(4)
         T1[:3, :3] = R_matrix1
-        T1[:3, 3] = self.position
+        T1[:3, 3] = pos1
 
         T2 = np.eye(4)
         T2[:3, :3] = R_matrix2
-        T2[:3, 3] = self.vicon_position
+        T2[:3, 3] = pos2
 
         # Compute the transformation matrix between the two poses changes from vicon to local frame
-        T21 = np.linalg.inv(T1) @ T2
+        T21 = np.matmul(np.linalg.inv(T1), T2)
 
         return T21
 
