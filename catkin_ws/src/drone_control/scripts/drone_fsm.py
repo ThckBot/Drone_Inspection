@@ -1,5 +1,6 @@
 import rospy
 import tf
+from utils import *
 import std_msgs
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -103,18 +104,17 @@ class DroneFSM():
         quat1 = [x1, y1, z1, w1]
         quat2 = [x2, y2, z2, w2]
 
-        r1 = Rotation.from_quat(quat1)
-        r2 = Rotation.from_quat(quat2)
-        R_matrix1 = r1.as_matrix()
-        R_matrix2 = r2.as_matrix()
+        
+        r1 = rot_from_quat(quat1)
+        r2 = rot_from_quat(quat2)
 
         # Get homogenous transformation matrices
         T1 = np.eye(4)
-        T1[:3, :3] = R_matrix1
+        T1[:3, :3] = r1
         T1[:3, 3] = pos1
 
         T2 = np.eye(4)
-        T2[:3, :3] = R_matrix2
+        T2[:3, :3] = r2
         T2[:3, 3] = pos2
 
         # Compute the transformation matrix between the two poses changes from vicon to local frame
