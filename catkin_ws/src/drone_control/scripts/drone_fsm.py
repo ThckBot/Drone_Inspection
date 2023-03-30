@@ -47,7 +47,7 @@ class DroneFSM():
 
         rospy.Subscriber('/mavros/state', State, self.state_callback)
 
-        self.transform_created = False
+        self.vicon_transform_created = False
         
 
         # Subscribe to vicon and local_position
@@ -69,7 +69,6 @@ class DroneFSM():
     def vicon_position_callback(self, pose_msg):
         self.vicon_position = pose_msg.transform.translation
         self.vicon_orientation = pose_msg.transform.rotation
-
         
 
     def compute_vicon_to_ekf_tf(self):
@@ -156,12 +155,15 @@ class DroneFSM():
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
 
-        # Create transformation matrix here
-        # TODO verify if right location - do we have self.position and self.vicon_position already?
+        # Create transformation matrix 
         # Assuming we know the vicon and point locations from self.position
+        if not self.vicon_transform_created:
             
-        # Create transform objects
-        self.vicon_transform = self.compute_vicon_to_ekf_tf()
+            # Create transform objects
+            self.vicon_transform = self.compute_vicon_to_ekf_tf()
+            self.vicon_transform_created = True
+        else:
+            print('Warning: transform already created')
 
         return
     
