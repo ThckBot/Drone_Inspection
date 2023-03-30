@@ -97,6 +97,8 @@ def comm_node():
     #drone.land()
     
     # Go to the positions
+    STATE = 'Waypoints'
+    drone.fsm_state = STATE
     print("Moving to waypoint 1\n")
     drone.nav_waypoints(pos1)
     drone.hover_test(5)
@@ -117,7 +119,7 @@ def comm_node():
             print('Waypoints:\n', WAYPOINTS)
             for waypt in WAYPOINTS:
                 drone.nav_waypoints(waypt, transform = True) # navigate to waypoint
-            drone.hover() # hover after finishing waypoints
+            drone.hover_test(5) # hover after finishing waypoints
             
         # Your code goes here
         if STATE == 'Launch':
