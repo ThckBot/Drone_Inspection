@@ -71,6 +71,14 @@ class DroneFSM():
         self.vicon_orientation = pose_msg.transform.rotation
         
 
+    # Use the transformation matrix to multiply and transform a point 
+    def compute_waypoint_transform(self, wp):
+        # Put waypoint in augmented form to multiply with vicon transform
+        wp_aug = np.array([[wp[0]],[wp[1]],[wp[2]], [1]])
+        wp_transformed = np.matmul(self.vicon_transformed,wp_aug)
+        
+        return wp_transformed[0:3]
+
     def compute_vicon_to_ekf_tf(self):
 
         x1 = self.orientation.x
@@ -282,50 +290,15 @@ class DroneFSM():
         return
 
 
-    def set_waypoints(self, way_points):
-        # Inputs: Gets list of waypoints from the command
-        # Outputs: Pushes the waypoints into WaypointList of MAVROS to the vehicle
-        # Format of Waypoints:
-
-        # for wp in way_points:
-        #     waypoint = Waypoint()
-        #     waypoint.frame = 3  # Global frame
-        #     waypoint.command = mavutil.mavlink.MAV_CMD_NAV_WAYPOINT
-        #     waypoint.is_current = False
-        #     waypoint.autocontinue = True
-        #     waypoint.param1 = 0  # Hold time at waypoint in seconds
-        #     waypoint.param2 = 0  # Acceptance radius in meters
-        #     waypoint.param3 = 0  # Pass through waypoint if set to 1
-        #     waypoint.param4 = 0  # Yaw angle in radians
-        #     waypoint.x_lat = latitude  # Latitude in degrees
-        #     waypoint.y_long = longitude  # Longitude in degrees
-        #     waypoint.z_alt = altitude  # Altitude in meters
-            
-        #     self.waypoint_list.waypoints.append(waypoint)
-
-        # self.waypoint_list.waypoints = [waypoint1, waypoint2, waypoint3]
-
-        # self.waypoint_client(start_index=0, waypoints= self.waypoint_list.waypoints)
-        pass
-
-
-    def set_waypoint_mode(self):
-        # TODO should be set to guided or AUTO.mission see MAV_MODE
-        self.set_mode_client(custom_mode='AUTO')
-
-
     def nav_waypoints(self, wp_next, vicon_milestones = False, vicon_pose = False):
-
-        
 
         waypoint_pose = Point()
         if vicon_milestones:
             # Transform milestones from vicon to local frame for publishing
-
-            # TODO: ADD TRANSFORM LOGIC 
-            waypoint_pose.x = wp_next[0]
-            waypoint_pose.y = wp_next[1]
-            waypoint_pose.z = wp_next[2]
+            wp_transformed = self.compute_waypoint_transform(wp_next)
+            waypoint_pose.x = wp_transformed[0]
+            waypoint_pose.y = wp_transformed[1]
+            waypoint_pose.z = wp_transformed[2]
             wp = [waypoint_pose.x, waypoint_pose.y, waypoint_pose.z] # for comparison
             pass
         else:
