@@ -46,6 +46,8 @@ class DroneFSM():
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
 
         rospy.Subscriber('/mavros/state', State, self.state_callback)
+
+        self.transform_created = False
         
 
         # Subscribe to vicon and local_position
@@ -60,24 +62,15 @@ class DroneFSM():
 
     # Callback for the pose subscriber
     def local_position_callback(self, pose_msg):
-        if self.vicon_milestones:
-            self.ekf_position = pose_msg.pose.pose.position
-            self.ekf_orientation = pose_msg.pose.pose.orientation
-            
-            # TODO: Compute self.position and self.orientation based on self.vicon_transform
-        else:
-            self.position = pose_msg.pose.pose.position
-            self.orientation = pose_msg.pose.pose.orientation
+        self.position = pose_msg.pose.pose.position
+        self.orientation = pose_msg.pose.pose.orientation
 
     # Callback for the pose subscriber
     def vicon_position_callback(self, pose_msg):
-        if self.vicon_milestones:
-            self.position = pose_msg.transform.translation
-            self.orientation = pose_msg.transform.rotation
-            
-        else:
-            self.vicon_position = pose_msg.transform.translation
-            self.vicon_orientation = pose_msg.transform.rotation
+        self.vicon_position = pose_msg.transform.translation
+        self.vicon_orientation = pose_msg.transform.rotation
+
+        
 
     def compute_vicon_to_ekf_tf(self):
 
@@ -319,22 +312,47 @@ class DroneFSM():
         self.set_mode_client(custom_mode='AUTO')
 
 
-    def nav_waypoints(self, wp_next, transform = False):
+    def nav_waypoints(self, wp_next, vicon_milestones = False, vicon_pose = False):
 
-        # Set up waypoints without transformation
+        
+
         waypoint_pose = Point()
-        waypoint_pose.x = wp_next[0]
-        waypoint_pose.y = wp_next[1]
-        waypoint_pose.z = wp_next[2]
+        if vicon_milestones:
+            # Transform milestones from vicon to local frame for publishing
+
+            # TODO: ADD TRANSFORM LOGIC 
+            waypoint_pose.x = wp_next[0]
+            waypoint_pose.y = wp_next[1]
+            waypoint_pose.z = wp_next[2]
+            wp = [waypoint_pose.x, waypoint_pose.y, waypoint_pose.z] # for comparison
+            pass
+        else:
+            # Set up waypoints without transformation
+            waypoint_pose.x = wp_next[0]
+            waypoint_pose.y = wp_next[1]
+            waypoint_pose.z = wp_next[2]
 
 
         # Drive drone to waypoint
         while not rospy.is_shutdown() and self.fsm_state == 'Waypoints':
             self.publish_setpoint(waypoint_pose, yaw = 0)
+
+            if vicon_pose:
+                # Directly compare the vicon pose to the milestone
+                pose = self.vicon_position
+                waypoint = wp_next # if using vicon pose and vicon milestone, compare directly
+            else:
+                # Otherwise compare the local pose to the milestone
+                pose = self.position
+                if vicon_milestones:
+                    waypoint = wp # If using local pose and vicon milestone, waypoints need to be transformed to local frame
+                else:
+                    waypoint = wp_next # if using local pose and local milestone, compare directly
+
             accum = 0 
-            accum += (self.position.x - wp_next[0])**2
-            accum += (self.position.y - wp_next[1])**2
-            accum += (self.position.z - wp_next[2])**2
+            accum += (pose.x - waypoint[0])**2
+            accum += (pose.y - waypoint[1])**2
+            accum += (pose.z - waypoint[2])**2
             accum = sqrt(accum)
             print("self.position is: ", self.position)
             print("desired waypoint: ", wp_next)
