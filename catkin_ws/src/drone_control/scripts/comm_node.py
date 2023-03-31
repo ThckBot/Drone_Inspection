@@ -112,13 +112,14 @@ def comm_node():
     drone.shutdown()
     rospy.sleep(0.2)
 
+    '''
     while not rospy.is_shutdown():
         if WAYPOINTS_RECEIVED:
             STATE = 'Waypoints'
             drone.fsm_state = STATE
             print('Waypoints:\n', WAYPOINTS)
             for waypt in WAYPOINTS:
-                drone.nav_waypoints(waypt, transform = True) # navigate to waypoint
+                drone.nav_waypoints(waypt, vicon_milestones = True, vicon_pose = False) # navigate to waypoint
             drone.hover_test(5) # hover after finishing waypoints
             
         # Your code goes here
@@ -136,7 +137,7 @@ def comm_node():
         elif STATE == 'Abort':
             print('Comm node: Aborting...')
             drone.shutdown()
-
+    '''
     
         
 
