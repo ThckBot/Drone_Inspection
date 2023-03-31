@@ -3,7 +3,6 @@ import tf
 from utils import *
 import std_msgs
 import numpy as np
-from scipy.spatial.transform import Rotation
 from geometry_msgs.msg import PoseStamped,TransformStamped, Point
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State 
@@ -69,7 +68,10 @@ class DroneFSM():
     def vicon_position_callback(self, pose_msg):
         self.vicon_position = pose_msg.transform.translation
         self.vicon_orientation = pose_msg.transform.rotation
-        
+        #print("vicon position")
+        #print(pose_msg.transform.translation)
+        #print("vicon_orientation")
+        #print(pose_msg.transform.rotation)
 
     # Use the transformation matrix to multiply and transform a point 
     def compute_waypoint_transform(self, wp):
@@ -82,14 +84,14 @@ class DroneFSM():
     def compute_vicon_to_ekf_tf(self):
 
         x1 = self.orientation.x
-        y1 = self.orientation.x
-        z1 = self.orientation.x
-        w1 = self.orientation.x
+        y1 = self.orientation.y
+        z1 = self.orientation.z
+        w1 = self.orientation.w
 
         x2 = self.vicon_orientation.x
-        y2 = self.vicon_orientation.x
-        z2 = self.vicon_orientation.x
-        w2 = self.vicon_orientation.x
+        y2 = self.vicon_orientation.y
+        z2 = self.vicon_orientation.z
+        w2 = self.vicon_orientation.w
 
         px1 = self.position.x
         py1 = self.position.y
@@ -166,13 +168,23 @@ class DroneFSM():
         # Create transformation matrix 
         # Assuming we know the vicon and point locations from self.position
         if not self.vicon_transform_created:
-            
-            # Create transform objects
+            print("Creating transform")     
+                   # Create transform objects
+            print("self.position")
+            print(self.position)
+            print("self.orientation")
+            print(self.orientation)
+
+            print("self.vicon_position")
+            print(self.vicon_position)
+            print("self.vicon_orientation")
+            print(self.vicon_orientation)
             self.vicon_transform = self.compute_vicon_to_ekf_tf()
             self.vicon_transform_created = True
+            print(self.vicon_transform)
         else:
             print('Warning: transform already created')
-
+            
         return
     
     # De-arm drone and shut down
@@ -329,8 +341,8 @@ class DroneFSM():
             accum += (pose.y - waypoint[1])**2
             accum += (pose.z - waypoint[2])**2
             accum = sqrt(accum)
-            print("self.position is: ", self.position)
-            print("desired waypoint: ", wp_next)
+            #print("self.position is: ", self.position)
+            #print("desired waypoint: ", wp_next)
             if accum < 0.1:
                 break
 

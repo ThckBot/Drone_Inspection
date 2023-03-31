@@ -92,8 +92,8 @@ def comm_node():
     drone.arm()
     rospy.sleep(1.)
     drone.takeoff(0.5) # m
-    drone.shutdown()
-    #drone.hover(10.0) # s
+    #drone.shutdown()
+    drone.hover_test(5) # s
     #drone.land()
     
     # Go to the positions
