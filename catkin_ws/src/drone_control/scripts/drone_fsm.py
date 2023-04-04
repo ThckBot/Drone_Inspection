@@ -50,7 +50,9 @@ class DroneFSM():
         
 
         # Subscribe to vicon and local_position
+
         rospy.Subscriber('/mavros/local_position/odom', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
+        #rospy.Subscriber('/mavros/odometry/out', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_position_callback, queue_size=10)
 
         self.sp_pos = Point()
@@ -77,7 +79,7 @@ class DroneFSM():
     def compute_waypoint_transform(self, wp):
         # Put waypoint in augmented form to multiply with vicon transform
         wp_aug = np.array([[wp[0]],[wp[1]],[wp[2]], [1]])
-        wp_transformed = np.matmul(self.vicon_transformed,wp_aug)
+        wp_transformed = np.matmul(self.vicon_transform,wp_aug)
         
         return wp_transformed[0:3]
 
@@ -182,6 +184,12 @@ class DroneFSM():
             self.vicon_transform = self.compute_vicon_to_ekf_tf()
             self.vicon_transform_created = True
             print(self.vicon_transform)
+            print('Testing transform')
+            print('-----------------------------------')
+            wp = [1,2,3]
+            print('Original point: ', wp)
+            trans_wp = self.compute_waypoint_transform(wp)
+            print('Transformed point: ', trans_wp)
         else:
             print('Warning: transform already created')
             
@@ -271,7 +279,7 @@ class DroneFSM():
         self.sp_pos = self.position
         while (self.position.z > 0.01):
             print(self.position.z)
-            self.sp_pos.z = self.position.z - 0.10
+            self.sp_pos.z = self.position.z - 0.15
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
         # self.stop()
@@ -284,11 +292,20 @@ class DroneFSM():
     # Publish set point
     def publish_setpoint(self, setpoint, yaw = 0):
         sp = PoseStamped()
-        sp.pose.position.x = setpoint.x
-        sp.pose.position.y = setpoint.y
-        sp.pose.position.z = setpoint.z
+        
+        theta = -0.48
+        #theta = 0
 
-        q = quaternion_from_euler(0, 0, yaw)
+        fix_frame = np.array([[np.cos(theta),-np.sin(theta),0],[np.sin(theta),np.cos(theta),0],[0,0,1]])
+        temp_sp = np.array([[setpoint.x],[setpoint.y],[setpoint.z]])
+
+        setpoint_transformed = np.matmul(fix_frame,temp_sp.reshape((3,1)))
+
+        sp.pose.position.x = setpoint_transformed[0]
+        sp.pose.position.y = setpoint_transformed[1]
+        sp.pose.position.z = setpoint_transformed[2]
+
+        q = quaternion_from_euler(0, 0, -theta)
         sp.pose.orientation.x = q[0]
         sp.pose.orientation.y = q[1]
         sp.pose.orientation.z = q[2]
@@ -311,15 +328,13 @@ class DroneFSM():
             waypoint_pose.x = wp_transformed[0]
             waypoint_pose.y = wp_transformed[1]
             waypoint_pose.z = wp_transformed[2]
-            wp = [waypoint_pose.x, waypoint_pose.y, waypoint_pose.z] # for comparison
-            pass
         else:
             # Set up waypoints without transformation
             waypoint_pose.x = wp_next[0]
             waypoint_pose.y = wp_next[1]
             waypoint_pose.z = wp_next[2]
 
-
+        print('Moving to waypoint:', waypoint_pose)
         # Drive drone to waypoint
         while not rospy.is_shutdown() and self.fsm_state == 'Waypoints':
             self.publish_setpoint(waypoint_pose, yaw = 0)
@@ -332,7 +347,7 @@ class DroneFSM():
                 # Otherwise compare the local pose to the milestone
                 pose = self.position
                 if vicon_milestones:
-                    waypoint = wp # If using local pose and vicon milestone, waypoints need to be transformed to local frame
+                    waypoint = wp_transformed # If using local pose and vicon milestone, waypoints need to be transformed to local frame
                 else:
                     waypoint = wp_next # if using local pose and local milestone, compare directly
 
@@ -343,7 +358,9 @@ class DroneFSM():
             accum = sqrt(accum)
             #print("self.position is: ", self.position)
             #print("desired waypoint: ", wp_next)
-            if accum < 0.1:
+            if accum < 0.2:
+                print("self.position is: ", pose)
+                print("desired waypoint: ", waypoint)
                 break
 
             
