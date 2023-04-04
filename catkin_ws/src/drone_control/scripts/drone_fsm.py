@@ -123,7 +123,7 @@ class DroneFSM():
         T2[:3, 3] = pos2
 
         # Compute the transformation matrix between the two poses changes from vicon to local frame
-        T21 = np.matmul(np.linalg.inv(T1), T2)
+        T21 = np.matmul(np.linalg.inv(T2), T1)
 
         return T21
 
@@ -279,7 +279,7 @@ class DroneFSM():
         self.sp_pos = self.position
         while (self.position.z > 0.01):
             print(self.position.z)
-            self.sp_pos.z = self.position.z - 0.15
+            self.sp_pos.z = self.position.z - 0.05
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
         # self.stop()
@@ -293,10 +293,13 @@ class DroneFSM():
     def publish_setpoint(self, setpoint, yaw = 0):
         sp = PoseStamped()
         
-        theta = -0.48
+
+        #theta = -0.48
+        theta = 0
         #theta = 0
 
         fix_frame = np.array([[np.cos(theta),-np.sin(theta),0],[np.sin(theta),np.cos(theta),0],[0,0,1]])
+        
         temp_sp = np.array([[setpoint.x],[setpoint.y],[setpoint.z]])
 
         setpoint_transformed = np.matmul(fix_frame,temp_sp.reshape((3,1)))
