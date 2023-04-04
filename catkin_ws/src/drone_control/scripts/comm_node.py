@@ -84,14 +84,17 @@ def comm_node():
     WAYPOINTS = np.empty((0,3))
 
     # Create Test waypoints
-    pos1 = np.array([0, 0, 0.25])
-    pos2 = np.array([1, 0, 0.25])
+    pos1 = np.array([0, 0, .75])
+    pos2 = np.array([2, 0, 0.25])
     pos3 = np.array([1, 1, 0.25])
 
+    vicon_milestones = False
+    vicon_pose = False
+    
     # Arm the drone
     drone.arm()
     rospy.sleep(1.)
-    drone.takeoff(0.5) # m
+    drone.takeoff(0.50) # m
     #drone.shutdown()
     drone.hover_test(5) # s
     #drone.land()
@@ -100,19 +103,19 @@ def comm_node():
     STATE = 'Waypoints'
     drone.fsm_state = STATE
     print("Moving to waypoint 1\n")
-    drone.nav_waypoints(pos1)
-    drone.hover_test(5)
+    drone.nav_waypoints(pos1,vicon_milestones=vicon_milestones,vicon_pose=vicon_pose)
+    drone.hover_test(1)
     print("Moving to waypoint 2\n")
-    drone.nav_waypoints(pos2)
-    drone.hover_test(5)
+    drone.nav_waypoints(pos2,vicon_milestones=vicon_milestones,vicon_pose=vicon_pose)
+    drone.hover_test(1)
     print("Moving to waypoint 3\n")
-    drone.nav_waypoints(pos3)
-    drone.hover_test(5)
+    drone.nav_waypoints(pos3,vicon_milestones=vicon_milestones,vicon_pose=vicon_pose)
+    drone.hover_test(1)
     drone.land()
     drone.shutdown()
     rospy.sleep(0.2)
 
-    '''
+    
     while not rospy.is_shutdown():
         if WAYPOINTS_RECEIVED:
             STATE = 'Waypoints'
@@ -120,7 +123,7 @@ def comm_node():
             print('Waypoints:\n', WAYPOINTS)
             for waypt in WAYPOINTS:
                 drone.nav_waypoints(waypt, vicon_milestones = True, vicon_pose = False) # navigate to waypoint
-            drone.hover_test(5) # hover after finishing waypoints
+            drone.hover_test(1) # hover after finishing waypoints
             
         # Your code goes here
         if STATE == 'Launch':
@@ -137,7 +140,7 @@ def comm_node():
         elif STATE == 'Abort':
             print('Comm node: Aborting...')
             drone.shutdown()
-    '''
+    
     
         
 
