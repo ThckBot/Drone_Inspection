@@ -279,7 +279,7 @@ class DroneFSM():
         self.sp_pos = self.position
         while (self.position.z > 0.01):
             print(self.position.z)
-            self.sp_pos.z = self.position.z - 0.05
+            self.sp_pos.z = self.position.z - 0.1
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
         # self.stop()
@@ -361,7 +361,7 @@ class DroneFSM():
             accum = sqrt(accum)
             #print("self.position is: ", self.position)
             #print("desired waypoint: ", wp_next)
-            if accum < 0.2:
+            if accum < 0.3:
                 print("self.position is: ", pose)
                 print("desired waypoint: ", waypoint)
                 break
