@@ -80,41 +80,6 @@ def comm_node():
 
     print('This is a dummy drone node to test communication with the ground control')
 
-    # Milestone 3 Local Test code
-    WAYPOINTS = np.empty((0,3))
-
-    # Create Test waypoints
-    pos1 = np.array([0, 0, .75])
-    pos2 = np.array([2, 0, 0.5])
-    pos3 = np.array([0, 2, 0.25])
-
-    vicon_milestones = True
-    vicon_pose = False
-    
-    # Arm the drone
-    drone.arm()
-    rospy.sleep(1.)
-    drone.takeoff(0.375) # m
-    #drone.shutdown()
-    drone.hover_test(5)# s
-    drone.compute_vicon_to_ekf_tf()
-    #drone.land()
-    
-    # Go to the positions
-    STATE = 'Waypoints'
-    drone.fsm_state = STATE
-    print("Moving to waypoint 1\n")
-    drone.nav_waypoints(pos1,vicon_milestones=vicon_milestones,vicon_pose=vicon_pose)
-    drone.hover_test(5)
-    print("Moving to waypoint 2\n")
-    drone.nav_waypoints(pos2,vicon_milestones=vicon_milestones,vicon_pose=vicon_pose)
-    drone.hover_test(5)
-    print("Moving to waypoint 3\n")
-    drone.nav_waypoints(pos3,vicon_milestones=vicon_milestones,vicon_pose=vicon_pose)
-    drone.hover_test(5)
-    drone.land()
-    drone.shutdown()
-    rospy.sleep(0.2)
 
     
     while not rospy.is_shutdown():
@@ -123,18 +88,20 @@ def comm_node():
             drone.fsm_state = STATE
             print('Waypoints:\n', WAYPOINTS)
             for waypt in WAYPOINTS:
+                waypt[1] = waypt[1]-1 
+
                 drone.nav_waypoints(waypt, vicon_milestones = True, vicon_pose = False) # navigate to waypoint
-            drone.hover_test(1) # hover after finishing waypoints
+                drone.hover_test(3) # hover after finishing waypoints
             
         # Your code goes here
         if STATE == 'Launch':
             print('Comm node: Launching...')
             drone.arm()
-            drone.takeoff(.5)
+            drone.takeoff(.75)
             drone.hover()
         elif STATE == 'Test':
             print('Comm node: Testing...')
-            drone.hover_test()
+            drone.hover()
         elif STATE == 'Land':
             print('Comm node: Landing...')
             drone.land()

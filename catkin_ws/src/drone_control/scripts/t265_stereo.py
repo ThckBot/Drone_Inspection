@@ -26,12 +26,15 @@ $ python3 t265_stereo.py        # Run the example
 """
 
 # First import the library
-import pyrealsense2 as rs
+#import pyrealsense2 as rs
 
 # Import OpenCV and numpy
 import cv2
 import numpy as np
 from math import tan, pi
+import rospy
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
 
 """
 In this section, we will set up the functions that will translate the camera
@@ -80,31 +83,37 @@ to ensure that data is synchronized properly. We should also be
 careful not to do much work on this thread to avoid data backing up in the
 callback queue.
 """
-def callback(frame):
-    global frame_data
-    if frame.is_frameset():
-        frameset = frame.as_frameset()
-        f1 = frameset.get_fisheye_frame(1).as_video_frame()
-        f2 = frameset.get_fisheye_frame(2).as_video_frame()
-        left_data = np.asanyarray(f1.get_data())
-        right_data = np.asanyarray(f2.get_data())
-        ts = frameset.get_timestamp()
-        frame_mutex.acquire()
-        frame_data["left"] = left_data
-        frame_data["right"] = right_data
-        frame_data["timestamp_ms"] = ts
-        frame_mutex.release()
+def callback1(data):
+    bridge = CvBridge()
+
+    return bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+
+def callback2(data):
+    bridge = CvBridge()
+
+    return bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+
+def callback_intrinsics_1(data):
+    bridge = CvBridge()
+
+    return bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+
+def callback_intrinsics_2(data):
+    bridge = CvBridge()
+
+    return bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
 
 # Declare RealSense pipeline, encapsulating the actual device and sensors
-pipe = rs.pipeline()
+#pipe = rs.pipeline()
 
 # Build config object and stream everything
-cfg = rs.config()
+#cfg = rs.config()
 
 # Start streaming with our callback
-pipe.start(cfg, callback)
+#pipe.start(cfg, callback)
 
 try:
+    rospy.init_node('drone_stereo', anonymous=True)
     # Set up an OpenCV window to visualize the results
     WINDOW_TITLE = 'Realsense'
     cv2.namedWindow(WINDOW_TITLE, cv2.WINDOW_NORMAL)
@@ -128,15 +137,12 @@ try:
                                    speckleRange = 32)
 
     # Retreive the stream and intrinsic properties for both cameras
-    profiles = pipe.get_active_profile()
-    streams = {"left"  : profiles.get_stream(rs.stream.fisheye, 1).as_video_stream_profile(),
-               "right" : profiles.get_stream(rs.stream.fisheye, 2).as_video_stream_profile()}
-    intrinsics = {"left"  : streams["left"].get_intrinsics(),
-                  "right" : streams["right"].get_intrinsics()}
-
-    # Print information about both cameras
-    print("Left camera:",  intrinsics["left"])
-    print("Right camera:", intrinsics["right"])
+    #profiles = pipe.get_active_profile()
+    
+    fisheye1 = rospy.Subscriber('/camera/fisheye1/image_raw', Image, callback1)
+    fisheye2 = rospy.Subscriber('/camera/fisheye2/image_raw', Image, callback2)
+    intrinsics1 = rospy.Subscriber('/camera/fisheye1/image_raw', Image, callback_intrinsics_1)
+    intrinsics2 = rospy.Subscriber('/camera/fisheye2/image_raw', Image, callback_intrinsics_2)
 
     # Translate the intrinsics from librealsense into OpenCV
     K_left  = camera_matrix(intrinsics["left"])

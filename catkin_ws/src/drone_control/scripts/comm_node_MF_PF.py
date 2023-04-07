@@ -85,19 +85,18 @@ def comm_node():
 
     # Create Test waypoints
     pos1 = np.array([0, 0, .75])
-    pos2 = np.array([2, 0, 0.5])
-    pos3 = np.array([0, 2, 0.25])
+    pos2 = np.array([1, 0, 0.5])
+    pos3 = np.array([0, 1, 0.5])
 
-    vicon_milestones = True
+    vicon_milestones = False
     vicon_pose = False
     
     # Arm the drone
     drone.arm()
     rospy.sleep(1.)
-    drone.takeoff(0.375) # m
+    drone.takeoff(0.50) # m
     #drone.shutdown()
-    drone.hover_test(5)# s
-    drone.compute_vicon_to_ekf_tf()
+    drone.hover_test(5) # s
     #drone.land()
     
     # Go to the positions
@@ -105,13 +104,13 @@ def comm_node():
     drone.fsm_state = STATE
     print("Moving to waypoint 1\n")
     drone.nav_waypoints(pos1,vicon_milestones=vicon_milestones,vicon_pose=vicon_pose)
-    drone.hover_test(5)
+    drone.hover_test(1)
     print("Moving to waypoint 2\n")
     drone.nav_waypoints(pos2,vicon_milestones=vicon_milestones,vicon_pose=vicon_pose)
-    drone.hover_test(5)
+    drone.hover_test(1)
     print("Moving to waypoint 3\n")
     drone.nav_waypoints(pos3,vicon_milestones=vicon_milestones,vicon_pose=vicon_pose)
-    drone.hover_test(5)
+    drone.hover_test(1)
     drone.land()
     drone.shutdown()
     rospy.sleep(0.2)
