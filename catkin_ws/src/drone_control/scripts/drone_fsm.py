@@ -29,9 +29,16 @@ class DroneFSM():
         self.vicon_orientation = None
         self.ekf_position = None
         self.ekf_orientation = None
+
+        self.positions = []
+        self.vicon_positions = []
+        self.waypoints = []
+        self.vicon_waypoints= []
         
         self.vicon_transform = np.identity(4) # Default transform is all 1s
-
+        self.t1 = []
+        self.t2 = []
+        
         self.state = State()
         
         self.fsm_state = -1
@@ -121,11 +128,38 @@ class DroneFSM():
         T2 = np.eye(4)
         T2[:3, :3] = r2
         T2[:3, 3] = pos2
+        
+        self.t1 = pos1
+        self.t2 = pos2
 
         # Compute the transformation matrix between the two poses changes from vicon to local frame
         T21 = np.matmul(np.linalg.inv(T2), T1)
-
+        #theta = 0.15
+        #fix_frame = np.array([[np.cos(theta),-np.sin(theta),0, 0],[np.sin(theta),np.cos(theta),0,0],[0,0,1,0],[0,0,0,1]])
+        #T31 = np.matmul(fix_frame,T21)
+        #return T31
+        
+        self.vicon_transform = T21
+        self.vicon_transform_created = True
+        print("Computed Transform")        
         return T21
+
+    def update_rotation(self):
+        quat1 = [self.orientation.x,self.orientation.y,self.orientation.z,self.orientation.w]
+        quat2 = [self.vicon_orientation.x,self.vicon_orientation.y,self.vicon_orientation.z,self.vicon_orientation.w]
+        r1 = rot_from_quat(quat1)
+        r2 = rot_from_quat(quat2)
+        
+        T1 = np.eye(4)
+        T1[:3,:3] = r1
+        T1[:3,3] = self.t1
+
+        T2 = np.eye(4)
+        T2[:3,:3] = r2
+        T2[:3,3] = self.t2
+
+        self.vicon_transform = np.matmul(np.linalg.inv(T2),T1)
+
 
     # Arm the drone
     def arm(self):
@@ -166,35 +200,8 @@ class DroneFSM():
             
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
-
-        # Create transformation matrix 
-        # Assuming we know the vicon and point locations from self.position
-        if not self.vicon_transform_created:
-            print("Creating transform")     
-                   # Create transform objects
-            print("self.position")
-            print(self.position)
-            print("self.orientation")
-            print(self.orientation)
-
-            print("self.vicon_position")
-            print(self.vicon_position)
-            print("self.vicon_orientation")
-            print(self.vicon_orientation)
-            self.vicon_transform = self.compute_vicon_to_ekf_tf()
-            self.vicon_transform_created = True
-            print(self.vicon_transform)
-            print('Testing transform')
-            print('-----------------------------------')
-            wp = [1,2,3]
-            print('Original point: ', wp)
-            trans_wp = self.compute_waypoint_transform(wp)
-            print('Transformed point: ', trans_wp)
-        else:
-            print('Warning: transform already created')
-            
-        return
     
+        return
     # De-arm drone and shut down
     def shutdown(self):
         print("Inside Shutdown")
@@ -227,6 +234,7 @@ class DroneFSM():
             #print('z_position: ', self.position.z)
             #print('height: ', height)
             self.sp_pos.z = height
+
             #print('setpoint: ', self.sp_pos)
             #print(self.state.armed)
             #print(self.state.mode)
@@ -239,16 +247,9 @@ class DroneFSM():
         print('Position holding...')
         t0 = time.time()
         self.sp_pos = self.position
-        index = 0
+
         while (not rospy.is_shutdown()) and self.fsm_state == 'Launch':
             t = time.time()
-            if index >= 20:
-                print('time: ', t-t0)
-                print("orientation is: ", self.orientation)
-                print("position is: ", self.position)
-                index = 0
-            
-            index = index + 1
 
             # Update timestamp and publish sp 
             self.publish_setpoint(self.sp_pos)
@@ -258,15 +259,9 @@ class DroneFSM():
         print('Position holding...')
         t0 = time.time()
         self.sp_pos = self.position
-        index = 0
         t = time.time()
         while (not rospy.is_shutdown()) and hover_time >= t-t0:
             t = time.time()
-            if index >= 20:
-                print('time: ', t-t0)
-                index = 0
-            
-            index = index + 1
 
             # Update timestamp and publish sp 
             self.publish_setpoint(self.sp_pos)
@@ -284,13 +279,9 @@ class DroneFSM():
             self.rate.sleep()
         # self.stop()
     
-    # Move drone to milestone
-    def move(self, milestone):
-
-        return
 
     # Publish set point
-    def publish_setpoint(self, setpoint, yaw = 0):
+    def publish_setpoint(self, setpoint, yaw = -np.pi/4):
         sp = PoseStamped()
         
 
@@ -308,7 +299,7 @@ class DroneFSM():
         sp.pose.position.y = setpoint_transformed[1]
         sp.pose.position.z = setpoint_transformed[2]
 
-        q = quaternion_from_euler(0, 0, -theta)
+        q = quaternion_from_euler(0, 0, yaw)
         sp.pose.orientation.x = q[0]
         sp.pose.orientation.y = q[1]
         sp.pose.orientation.z = q[2]
@@ -321,16 +312,35 @@ class DroneFSM():
 
         return
 
+    def dance(self):
+        # Move around in a square from waypoint
+        start_pose = self.position
+        dist = 0.3
+        new_pose = Point()
+        for x in range(-1,2,2):
+            for y in range(-1,2,2):
+                new_pose.x = start_pose.x + x*dist
+                new_pose.y = start_pose.y + y*dist
+                new_pose.z = start_pose.z
+
+                curr_pose = self.position
+                while np.linalg.norm([curr_pose.x-new_pose.x,curr_pose.y-new_pose.y,curr_pose.z-new_pose.z]) > 0.1:
+                    self.publish_setpoint(new_pose)
+                    self.rate.sleep()
+                    curr_pose = self.position
 
     def nav_waypoints(self, wp_next, vicon_milestones = False, vicon_pose = False):
-
+        print('Untransformed waypoint:',wp_next)
         waypoint_pose = Point()
         if vicon_milestones:
             # Transform milestones from vicon to local frame for publishing
+            self.vicon_waypoints.append(wp_next)
             wp_transformed = self.compute_waypoint_transform(wp_next)
+            print('transformation matrix',self.vicon_transform)
             waypoint_pose.x = wp_transformed[0]
             waypoint_pose.y = wp_transformed[1]
             waypoint_pose.z = wp_transformed[2]
+            self.waypoints.append(wp_transformed)
         else:
             # Set up waypoints without transformation
             waypoint_pose.x = wp_next[0]
@@ -338,8 +348,10 @@ class DroneFSM():
             waypoint_pose.z = wp_next[2]
 
         print('Moving to waypoint:', waypoint_pose)
+        i = 0
         # Drive drone to waypoint
         while not rospy.is_shutdown() and self.fsm_state == 'Waypoints':
+            i += 1
             self.publish_setpoint(waypoint_pose, yaw = 0)
 
             if vicon_pose:
@@ -361,9 +373,15 @@ class DroneFSM():
             accum = sqrt(accum)
             #print("self.position is: ", self.position)
             #print("desired waypoint: ", wp_next)
+
+            if i%5 == 0:
+                self.positions.append([self.position.x,self.position.y,self.position.z])
+                #self.vicon_positions.append([self.vicon_position.x,self.vicon_position.y,self.vicon_position.z])
+
             if accum < 0.3:
                 print("self.position is: ", pose)
                 print("desired waypoint: ", waypoint)
+                #self.dance()
                 break
 
             

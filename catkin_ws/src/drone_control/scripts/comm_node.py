@@ -80,32 +80,47 @@ def comm_node():
 
     print('This is a dummy drone node to test communication with the ground control')
 
-
-    
+    computed = False
+    done_waypoints = False
     while not rospy.is_shutdown():
         if WAYPOINTS_RECEIVED:
             STATE = 'Waypoints'
+            drone.compute_vicon_to_ekf_tf()
             drone.fsm_state = STATE
             print('Waypoints:\n', WAYPOINTS)
             for waypt in WAYPOINTS:
+                print('Done computing transform')
                 drone.nav_waypoints(waypt, vicon_milestones = True, vicon_pose = False) # navigate to waypoint
-                drone.hover_test(3) # hover after finishing waypoints
+                drone.hover_test(2)
+                drone.update_rotation()
+                drone.hover_test(2) # hover after finishing waypoints
+            done_waypoints = True
+            print("Done waypoints")
+            np.save('positions.npy',np.array(drone.positions).transpose)
+            np.save('vicon_positions.npy',np.array(drone.vicon_positions).transpose)
+            np.save('waypoints.npy',np.array(drone.waypoints).transpose)
+            np.save('vicon_waypoints.npy',np.array(drone.vicon_waypoints).transpose)
+            np.save('transformation.npy',np.array(drone.vicon_transform))
             
         # Your code goes here
         if STATE == 'Launch':
             print('Comm node: Launching...')
             drone.arm()
-            drone.takeoff(.77777775)
+            drone.takeoff(.75)
             drone.hover()
         elif STATE == 'Test':
-            print('Comm node: Testing...')
-            drone.hover_test()
+            if computed == False:
+                computed = True
+                print('Comm node: Testing...')
+
+            drone.hover()
         elif STATE == 'Land':
             print('Comm node: Landing...')
             drone.land()
         elif STATE == 'Abort':
             print('Comm node: Aborting...')
             drone.shutdown()
+
     
     
         
