@@ -35,14 +35,17 @@ class PathPlanner:
 
     def add_obstacle(self, obstacle):
         self.obstacles[self.next_obs] = obstacle
+    
+    def increment_obs(self):
+        self.next_obs += 1
 
-    def adjust_waypoint(self, waypoint):
-        # red
-        if self.next_obs.colour == -1:
-        # green    
-        else:
-            #TODO
-        return wp
+    def adjust_waypoint(self, old_wp):
+        z = np.array([0,0,1])
+        adjust_direction = np.cross(old_wp,z)
+        norm_direction = (self.next_obs.colour)*adjust_direction/np.linalg.norm(adjust_direction)
+        new_wp = old_wp + (self.min_dist)*norm_direction 
+        
+        return new_wp
 
     def check_collision(self, waypoint):
         obst = self.obstacles[self.next_obs].coords
