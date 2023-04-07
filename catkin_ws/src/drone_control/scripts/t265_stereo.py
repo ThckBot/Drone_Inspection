@@ -35,6 +35,7 @@ from math import tan, pi
 import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+import time
 
 """
 In this section, we will set up the functions that will translate the camera
@@ -69,13 +70,7 @@ Returns the fisheye distortion from librealsense intrinsics
 def fisheye_distortion(intrinsics):
     return np.array(intrinsics.coeffs[:4])
 
-# Set up a mutex to share data between threads 
-from threading import Lock
-frame_mutex = Lock()
-frame_data = {"left"  : None,
-              "right" : None,
-              "timestamp_ms" : None
-              }
+
 
 """
 This callback is called on a separate thread, so we must use a mutex
@@ -84,33 +79,31 @@ careful not to do much work on this thread to avoid data backing up in the
 callback queue.
 """
 def callback1(data):
+    global data_left
     bridge = CvBridge()
 
-    return bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+    data_left = bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
 
 def callback2(data):
+    global data_right
     bridge = CvBridge()
 
-    return bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+    data_right = bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
 
 def callback_intrinsics_1(data):
-    bridge = CvBridge()
+    global K_left, D_left, R_left, P_left
+    K_left = np.array(data.K).reshape(3,3)
+    D_left = np.array(data.D)
+    R_left = np.array(data.R).reshape(3,3)
+    P_left = np.array(data.P).reshape(3,4)
 
-    return bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
 
 def callback_intrinsics_2(data):
-    bridge = CvBridge()
-
-    return bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
-
-# Declare RealSense pipeline, encapsulating the actual device and sensors
-#pipe = rs.pipeline()
-
-# Build config object and stream everything
-#cfg = rs.config()
-
-# Start streaming with our callback
-#pipe.start(cfg, callback)
+    global K_right, D_right, R_right, P_right
+    K_right = np.array(data.K).reshape(3,3)
+    D_right = np.array(data.D)
+    R_right = np.array(data.R).reshape(3,3)
+    P_right = np.array(data.P).reshape(3,4)
 
 try:
     rospy.init_node('drone_stereo', anonymous=True)
@@ -144,16 +137,6 @@ try:
     intrinsics1 = rospy.Subscriber('/camera/fisheye1/image_raw', Image, callback_intrinsics_1)
     intrinsics2 = rospy.Subscriber('/camera/fisheye2/image_raw', Image, callback_intrinsics_2)
 
-    # Translate the intrinsics from librealsense into OpenCV
-    K_left  = camera_matrix(intrinsics["left"])
-    D_left  = fisheye_distortion(intrinsics["left"])
-    K_right = camera_matrix(intrinsics["right"])
-    D_right = fisheye_distortion(intrinsics["right"])
-    (width, height) = (intrinsics["left"].width, intrinsics["left"].height)
-
-    # Get the relative extrinsics between the left and right camera
-    (R, T) = get_extrinsics(streams["left"], streams["right"])
-
     # We need to determine what focal length our undistorted images should have
     # in order to set up the camera matrices for initUndistortRectifyMap.  We
     # could use stereoRectify, but here we show how to derive these projection
@@ -174,8 +157,6 @@ try:
 
     # We set the left rotation to identity and the right rotation
     # the rotation between the cameras
-    R_left = np.eye(3)
-    R_right = R
 
     # The stereo algorithm needs max_disp extra pixels in order to produce valid
     # disparity on the desired output region. This changes the width, but the
@@ -188,18 +169,6 @@ try:
     # Construct the left and right projection matrices, the only difference is
     # that the right projection matrix should have a shift along the x axis of
     # baseline*focal_length
-    P_left = np.array([[stereo_focal_px, 0, stereo_cx, 0],
-                       [0, stereo_focal_px, stereo_cy, 0],
-                       [0,               0,         1, 0]])
-    P_right = P_left.copy()
-    P_right[0][3] = T[0]*stereo_focal_px
-
-    # Construct Q for use with cv2.reprojectImageTo3D. Subtract max_disp from x
-    # since we will crop the disparity later
-    Q = np.array([[1, 0,       0, -(stereo_cx - max_disp)],
-                  [0, 1,       0, -stereo_cy],
-                  [0, 0,       0, stereo_focal_px],
-                  [0, 0, -1/T[0], 0]])
 
     # Create an undistortion map for the left and right camera which applies the
     # rectification and undoes the camera distortion. This only has to be done
@@ -212,18 +181,14 @@ try:
 
     mode = "stack"
     while True:
-        # Check if the camera has acquired any frames
-        frame_mutex.acquire()
-        valid = frame_data["timestamp_ms"] is not None
-        frame_mutex.release()
+        valid = False
+        time.sleep(0.5)
 
         # If frames are ready to process
         if valid:
             # Hold the mutex only long enough to copy the stereo frames
-            frame_mutex.acquire()
-            frame_copy = {"left"  : frame_data["left"].copy(),
-                          "right" : frame_data["right"].copy()}
-            frame_mutex.release()
+            frame_copy = {"left"  : data_left,
+                          "right" : data_right}
 
             # Undistort and crop the center of the frames
             center_undistorted = {"left" : cv2.remap(src = frame_copy["left"],
@@ -259,5 +224,6 @@ try:
         if key == ord('o'): mode = "overlay"
         if key == ord('q') or cv2.getWindowProperty(WINDOW_TITLE, cv2.WND_PROP_VISIBLE) < 1:
             break
-finally:
-    pipe.stop()
+except rospy.ROSInterruptException:	
+    print("didnt make it in stereo node")	
+    pass
