@@ -33,9 +33,14 @@ import cv2
 import numpy as np
 from math import tan, pi
 import rospy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import time
+
+data_left, data_right = None, None
+K_left, D_left, R_left, P_left = None, None, None, None
+K_right, D_right, R_right, P_right = None, None, None, None
+
 
 """
 In this section, we will set up the functions that will translate the camera
@@ -134,8 +139,8 @@ try:
     
     fisheye1 = rospy.Subscriber('/camera/fisheye1/image_raw', Image, callback1)
     fisheye2 = rospy.Subscriber('/camera/fisheye2/image_raw', Image, callback2)
-    intrinsics1 = rospy.Subscriber('/camera/fisheye1/image_raw', Image, callback_intrinsics_1)
-    intrinsics2 = rospy.Subscriber('/camera/fisheye2/image_raw', Image, callback_intrinsics_2)
+    intrinsics1 = rospy.Subscriber('/camera/fisheye1/camera_info', CameraInfo, callback_intrinsics_1)
+    intrinsics2 = rospy.Subscriber('/camera/fisheye2/camera_info', CameraInfo, callback_intrinsics_2)
 
     # We need to determine what focal length our undistorted images should have
     # in order to set up the camera matrices for initUndistortRectifyMap.  We
@@ -152,7 +157,7 @@ try:
     #      \ fov /
     #        \|/
     stereo_fov_rad = 90 * (pi/180)  # 90 degree desired fov
-    stereo_height_px = 300          # 300x300 pixel stereo output
+    stereo_height_px = 500          # 300x300 pixel stereo output
     stereo_focal_px = stereo_height_px/2 / tan(stereo_fov_rad/2)
 
     # We set the left rotation to identity and the right rotation
@@ -174,6 +179,13 @@ try:
     # rectification and undoes the camera distortion. This only has to be done
     # once
     m1type = cv2.CV_32FC1
+
+    # wait for all subscribers to initialize
+    print('waiting...')
+    time.sleep(5)
+
+    print('done waiting, init undistort')
+
     (lm1, lm2) = cv2.fisheye.initUndistortRectifyMap(K_left, D_left, R_left, P_left, stereo_size, m1type)
     (rm1, rm2) = cv2.fisheye.initUndistortRectifyMap(K_right, D_right, R_right, P_right, stereo_size, m1type)
     undistort_rectify = {"left"  : (lm1, lm2),
@@ -183,9 +195,12 @@ try:
     while True:
         valid = False
         time.sleep(0.5)
+        valid = True
+        print('Valid')
 
         # If frames are ready to process
         if valid:
+            print('Frame copy')
             # Hold the mutex only long enough to copy the stereo frames
             frame_copy = {"left"  : data_left,
                           "right" : data_right}
@@ -210,7 +225,6 @@ try:
             disp_vis = 255*(disparity - min_disp)/ num_disp
             disp_color = cv2.applyColorMap(cv2.convertScaleAbs(disp_vis,1), cv2.COLORMAP_JET)
             color_image = cv2.cvtColor(center_undistorted["left"][:,max_disp:], cv2.COLOR_GRAY2RGB)
-
             if mode == "stack":
                 cv2.imshow(WINDOW_TITLE, np.hstack((color_image, disp_color)))
             if mode == "overlay":
@@ -219,7 +233,8 @@ try:
                 color_image[ind, 1] = disp_color[ind, 1]
                 color_image[ind, 2] = disp_color[ind, 2]
                 cv2.imshow(WINDOW_TITLE, color_image)
-        key = cv2.waitKey(1)
+        key = cv2.waitKey(0)
+        key = ord('s')
         if key == ord('s'): mode = "stack"
         if key == ord('o'): mode = "overlay"
         if key == ord('q') or cv2.getWindowProperty(WINDOW_TITLE, cv2.WND_PROP_VISIBLE) < 1:
