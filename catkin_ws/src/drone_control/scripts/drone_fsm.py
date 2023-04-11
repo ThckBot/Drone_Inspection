@@ -12,6 +12,8 @@ from mavros_msgs.msg import Waypoint, WaypointList, WaypointReached
 from mavros_msgs.srv import WaypointPush, WaypointPushRequest, WaypointClear, WaypointClearRequest
 import message_filters
 
+from jetcam.csi_camera import CSICamera
+
 from math import *
 import numpy as np
 from numpy.linalg import norm
@@ -20,7 +22,7 @@ import time
 
 #Drone FSM Class
 class DroneFSM():
-    def __init__(self, vicon=False):
+    def __init__(self):
         # fill in
         self.position = None
         self.orientation = None
@@ -31,10 +33,11 @@ class DroneFSM():
         self.ekf_orientation = None
 
         self.positions = []
-        self.vicon_positions = []
         self.waypoints = []
         self.vicon_waypoints= []
-        
+        self.sp_pos = Point()
+        self.obstacle_positions =[] #TODO add subscriber to obstacle position
+
         self.vicon_transform = np.identity(4) # Default transform is all 1s
         self.t1 = []
         self.t2 = []
@@ -42,7 +45,6 @@ class DroneFSM():
         self.state = State()
         
         self.fsm_state = -1
-        self.vicon_milestones = vicon
         self.hz = 10
         self.rate = rospy.Rate(self.hz) # Hz
 
@@ -55,14 +57,14 @@ class DroneFSM():
 
         self.vicon_transform_created = False
         
-
         # Subscribe to vicon and local_position
-
         rospy.Subscriber('/mavros/local_position/odom', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         #rospy.Subscriber('/mavros/odometry/out', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_position_callback, queue_size=10)
 
-        self.sp_pos = Point()
+        # Instantiate Camera
+        frame_width, frame_height = 640, 480
+        self.camera = CSICamera(width=frame_width, height=frame_height, capture_width=frame_width, capture_height=frame_height, capture_fps=30)
 
     # Callback for the state subscribers
     def state_callback(self, state):
@@ -376,12 +378,53 @@ class DroneFSM():
 
             if i%5 == 0:
                 self.positions.append([self.position.x,self.position.y,self.position.z])
-                #self.vicon_positions.append([self.vicon_position.x,self.vicon_position.y,self.vicon_position.z])
 
             if accum < 0.3:
                 print("self.position is: ", pose)
                 print("desired waypoint: ", waypoint)
-                #self.dance()
                 break
 
+    def scan_obstacles(self):
+        '''
+        Input: None
+        Output: 
+        Based on the current position stored in self.obstacle_positions 
+        the drone will turn to face each obstacle. It will then check the colour 
+        using a colour check funciton and finally assing this to the colour property of the function
+        '''
+
+        for obs in self.obstacle_positions:
+            # Get relative orientation by
+            # Get direciton vector
+            self.sp_pos.x = self.position.x
+            self.sp_pos.y = self.position.y
+            self.sp_pos.z = self.position.z
+
+            d = np.array([obs[0]-self.position.x, obs[1]-self.position.y, obs[2]-self.position.z])
+
+            # Get yaw between direction vector in degrees
+            theta = np.arctan2(d[1], d[0])
+
+            # Extract current orientation
+            x = self.orientation.x
+            y = self.orientation.y
+            z = self.orientation.z
+            w = self.orientation.w
+
+            # Get yaw in degrees
+            current_yaw = quaternion_to_yaw(self.orientation)
+
+            # Publish current positions while yaw error > 10 degrees
+            while abs(current_yaw - theta) > 5:
+                self.publish_setpoint(self.sp_pos, yaw = theta)
+
+            # Get Current image as a numpy array
+            frame = image = camera.read()
+
+            # Detect Colour
+            # TODO
+            #color self.detect_colour()
             
+            # Assign Colour to Obstacle
+            #obs.colour = color
+        
