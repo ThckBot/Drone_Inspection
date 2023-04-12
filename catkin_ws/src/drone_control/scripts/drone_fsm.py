@@ -287,9 +287,7 @@ class DroneFSM():
         sp = PoseStamped()
         
 
-        #theta = -0.48
         theta = 0
-        #theta = 0
 
         fix_frame = np.array([[np.cos(theta),-np.sin(theta),0],[np.sin(theta),np.cos(theta),0],[0,0,1]])
         
@@ -384,16 +382,30 @@ class DroneFSM():
                 print("desired waypoint: ", waypoint)
                 break
 
-    def scan_circle(self, turns):
+    def scan_circle(self, turns, wait_time):
         '''
-        Input: Turns
-        Output: NOne
+        Input: Turns, wait time
+        Output: 
         Based on the current position stored in self.obstacle_positions 
         the drone will turn to face a series of direction, number of 
-        points where it will stop depends on the parameter turns
+        points where it will stop depends on the parameter turns, 
+        Hovers for length of wait time
         '''
+        directions = np.linspace(0,2*np.pi,turns)
+        
+        # For each direction we face, publish setpoints
+        print(" IN SCAN CIRCLE")
+        for dir in directions:
+            # Set the set point
+            print("Scan circle: trying to face direction: ", dir)
+            self.sp_pos.x = self.position.x
+            self.sp_pos.y = self.position.y
+            self.sp_pos.z = self.position.z
+            self.publish_setpoint(self.sp_pos, yaw = dir)
+            print("Scan circle: Hovering at", self.sp_pos)
+            self.hover_test(wait_time)
 
-        pass
+        
 
 
     def scan_obstacles(self):
