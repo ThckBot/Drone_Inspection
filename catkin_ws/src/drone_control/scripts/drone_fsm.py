@@ -421,12 +421,12 @@ class DroneFSM():
         '''
         Input: None
         Output: 
-        Based on the current position stored in self.obstacle_positions 
+        Based on the current positions stored in self.obstacle_positions 
         the drone will turn to face each obstacle. It will then check the colour 
         using a colour check funciton and finally assing this to the colour property of the function
         '''
 
-        for obs in self.obstacle_positions:
+        for i,obs in enumerate(self.obstacle_positions):
             # Get relative orientation by
             # Get direciton vector
             self.sp_pos.x = self.position.x
@@ -453,8 +453,12 @@ class DroneFSM():
                 self.publish_setpoint(self.sp_pos, yaw = theta_rad)
                 current_yaw = quaternion_to_yaw(self.orientation)
 
-            # Get Current image as a numpy array
-            frame = image = self.camera.read()
+            # Get the udated positions
+            obs_xpos, obs_ypos = self.get_obs_coords(self.depth.x, self.depth.y)
+
+            # TODO Update the position of this coordinate 
+            self.obstacle_positions[i][0] = obs_xpos
+            self.obstacle_positions[i][1] = obs_ypos
 
             # Detect Colour
             # TODO
@@ -500,15 +504,16 @@ class DroneFSM():
         return x_pos, y_pos
 
         
-    def obs_from_coords(self, offset_from_centre, dist_to_obstacle):
+    def get_obs_coords(self, offset_from_centre, dist_to_obstacle):
         """
         Inputs: offset_from_centre - pixel dist of obstacle in image transformed to world coords
                 dist_to_obstacle - distance to obstacle
         Parameters: width - camera_pixel width 
         Returns x_pos, y_pos in local coordinate frame
+        USAGE self.obs_from_coords(self.depth.x, self.depth.y)
         """
 
-        # USAGE self.obs_from_coords(self.depth.x, self.depth.y)
+        
 
         # Relative orientation in radians of obstacle to robot position
         theta_relative = np.arctan2(offset_from_centre, dist_to_obstacle) #TODO does order make sense
