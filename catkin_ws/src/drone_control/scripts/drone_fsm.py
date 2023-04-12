@@ -384,6 +384,18 @@ class DroneFSM():
                 print("desired waypoint: ", waypoint)
                 break
 
+    def scan_circle(self, turns):
+        '''
+        Input: Turns
+        Output: NOne
+        Based on the current position stored in self.obstacle_positions 
+        the drone will turn to face a series of direction, number of 
+        points where it will stop depends on the parameter turns
+        '''
+
+        pass
+
+
     def scan_obstacles(self):
         '''
         Input: None
@@ -404,6 +416,7 @@ class DroneFSM():
 
             # Get yaw between direction vector in degrees
             theta = np.arctan2(d[1], d[0])
+            theta_rad = theta * np.pi / 180
 
             # Extract current orientation
             x = self.orientation.x
@@ -414,12 +427,13 @@ class DroneFSM():
             # Get yaw in degrees
             current_yaw = quaternion_to_yaw(self.orientation)
 
-            # Publish current positions while yaw error > 10 degrees
-            while abs(current_yaw - theta) > 5:
-                self.publish_setpoint(self.sp_pos, yaw = theta)
+            # Publish current positions while yaw error > 10 degrees/.17 rad
+            while abs(current_yaw - theta) > 0.17:
+                self.publish_setpoint(self.sp_pos, yaw = theta_rad)
+                current_yaw = quaternion_to_yaw(self.orientation)
 
             # Get Current image as a numpy array
-            frame = image = camera.read()
+            frame = image = self.camera.read()
 
             # Detect Colour
             # TODO

@@ -18,4 +18,5 @@ def rot_from_quat(quat):
 def quaternion_to_yaw(q):
     x, y, z, w = q
     yaw = math.atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
-    return yaw
+    yaw_rad = yaw * np.pi / 180
+    return yaw_rad
