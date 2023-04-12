@@ -12,6 +12,8 @@ from mavros_msgs.msg import Waypoint, WaypointList, WaypointReached
 from mavros_msgs.srv import WaypointPush, WaypointPushRequest, WaypointClear, WaypointClearRequest
 import message_filters
 
+from jetcam.csi_camera import CSICamera
+
 from math import *
 import numpy as np
 from numpy.linalg import norm
@@ -20,7 +22,7 @@ import time
 
 #Drone FSM Class
 class DroneFSM():
-    def __init__(self, vicon=False):
+    def __init__(self):
         # fill in
         self.position = None
         self.orientation = None
@@ -31,18 +33,19 @@ class DroneFSM():
         self.ekf_orientation = None
 
         self.positions = []
-        self.vicon_positions = []
         self.waypoints = []
         self.vicon_waypoints= []
-        
+        self.sp_pos = Point()
+        self.obstacle_positions =[] #TODO add subscriber to obstacle position
+
         self.vicon_transform = np.identity(4) # Default transform is all 1s
         self.t1 = []
         self.t2 = []
         
         self.state = State()
+        self.depth = Point(x=0,y=0)
         
         self.fsm_state = -1
-        self.vicon_milestones = vicon
         self.hz = 10
         self.rate = rospy.Rate(self.hz) # Hz
 
@@ -55,14 +58,19 @@ class DroneFSM():
 
         self.vicon_transform_created = False
         
-
         # Subscribe to vicon and local_position
-
         rospy.Subscriber('/mavros/local_position/odom', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         #rospy.Subscriber('/mavros/odometry/out', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_position_callback, queue_size=10)
 
-        self.sp_pos = Point()
+        self.request_depth_client = rospy.Publisher('/THCK_depth_request_topic', Point, queue_size=10)
+        rospy.Subscriber("/THCK_depth_response_topic", Point, self.depth_response_callback, queue_size=10)
+
+        # Instantiate Monocular Camera
+        frame_width, frame_height = 640, 480
+        self.camera = CSICamera(width=frame_width, height=frame_height, capture_width=frame_width, capture_height=frame_height, capture_fps=30)
+
+
 
     # Callback for the state subscribers
     def state_callback(self, state):
@@ -81,6 +89,9 @@ class DroneFSM():
         #print(pose_msg.transform.translation)
         #print("vicon_orientation")
         #print(pose_msg.transform.rotation)
+
+    def depth_response_callback(self, depth_msg):
+        self.depth = depth_msg
 
     # Use the transformation matrix to multiply and transform a point 
     def compute_waypoint_transform(self, wp):
@@ -285,9 +296,7 @@ class DroneFSM():
         sp = PoseStamped()
         
 
-        #theta = -0.48
         theta = 0
-        #theta = 0
 
         fix_frame = np.array([[np.cos(theta),-np.sin(theta),0],[np.sin(theta),np.cos(theta),0],[0,0,1]])
         
@@ -376,12 +385,167 @@ class DroneFSM():
 
             if i%5 == 0:
                 self.positions.append([self.position.x,self.position.y,self.position.z])
-                #self.vicon_positions.append([self.vicon_position.x,self.vicon_position.y,self.vicon_position.z])
 
             if accum < 0.3:
                 print("self.position is: ", pose)
                 print("desired waypoint: ", waypoint)
-                #self.dance()
                 break
 
+    def scan_circle(self, turns, wait_time):
+        '''
+        Input: Turns, wait time
+        Output: 
+        Based on the current position stored in self.obstacle_positions 
+        the drone will turn to face a series of direction, number of 
+        points where it will stop depends on the parameter turns, 
+        Hovers for length of wait time
+        '''
+        directions = np.linspace(0,2*np.pi,turns)
+        
+        # For each direction we face, publish setpoints
+        print(" IN SCAN CIRCLE")
+        for dir in directions:
+            # Set the set point
+            print("Scan circle: trying to face direction: ", dir)
+            self.sp_pos.x = self.position.x
+            self.sp_pos.y = self.position.y
+            self.sp_pos.z = self.position.z
+            self.publish_setpoint(self.sp_pos, yaw = dir)
+            print("Scan circle: Hovering at", self.sp_pos)
+            self.hover_test(wait_time)
+
+        
+
+
+    def scan_obstacles(self):
+        '''
+        Input: None
+        Output: 
+        Based on the current positions stored in self.obstacle_positions 
+        the drone will turn to face each obstacle. It will then check the colour 
+        using a colour check funciton and finally assing this to the colour property of the function
+        '''
+
+        for i,obs in enumerate(self.obstacle_positions):
+            # Get relative orientation by
+            # Get direciton vector
+            self.sp_pos.x = self.position.x
+            self.sp_pos.y = self.position.y
+            self.sp_pos.z = self.position.z
+
+            d = np.array([obs[0]-self.position.x, obs[1]-self.position.y, obs[2]-self.position.z])
+
+            # Get yaw between direction vector in degrees
+            theta = np.arctan2(d[1], d[0])
+            theta_rad = theta * np.pi / 180
+
+            # Extract current orientation
+            x = self.orientation.x
+            y = self.orientation.y
+            z = self.orientation.z
+            w = self.orientation.w
+
+            # Get yaw in degrees
+            current_yaw = quaternion_to_yaw(self.orientation)
+
+            # Publish current positions while yaw error > 10 degrees/.17 rad
+            while abs(current_yaw - theta) > 0.17:
+                self.publish_setpoint(self.sp_pos, yaw = theta_rad)
+                current_yaw = quaternion_to_yaw(self.orientation)
+
+            # Get the udated positions
+            obs_xpos, obs_ypos = self.get_obs_coords(self.depth.x, self.depth.y)
+
+            # TODO Update the position of this coordinate 
+            self.obstacle_positions[i][0] = obs_xpos
+            self.obstacle_positions[i][1] = obs_ypos
+
+            # Detect Colour
+            # TODO
+            #color self.detect_colour()
             
+            # Assign Colour to Obstacle
+            #obs.colour = color
+        
+    def coord_from_pixel(self, x_pixel, dist_to_obstacle):
+        """
+        Inputs: x_pixel - pixel coord in image
+                dist_to_obstacle - distance to obstacle
+        Parameters: width - camera_pixel width 
+        Returns x_pos, y_pos in local coordinate frame
+        """
+
+        # Set Parameters
+        CAMERA_PIXEL_WIDTH = 500
+        CAMERA_SCALE = 30 # TODO Scale should be based on detected obstacle width
+
+        # Get the offset of pixel position from centre of image
+        pixel_offset = x_pixel - (CAMERA_PIXEL_WIDTH/2)
+        
+        # Relative x offset of the obstacle in frame
+        coord_offset = pixel_offset / CAMERA_SCALE 
+
+        # Relative orientation in radians of obstacle to robot position
+        theta_relative = np.arctan2(coord_offset, dist_to_obstacle) #TODO does order make sense
+
+        # Get Current Yaw
+        current_yaw = quaternion_to_yaw(self.orientation)
+
+        # Yaw in drone frame
+        yaw = current_yaw + theta_relative
+
+        ## Compute obstacle position ##
+        # Get the diagonal distane to obstacle
+        diag_distance = sqrt(coord_offset**2 + dist_to_obstacle**2)
+        
+        x_pos = diag_distance*np.sin(yaw)
+        y_pos = diag_distance*np.cos(yaw)
+
+        return x_pos, y_pos
+
+        
+    def get_obs_coords(self, offset_from_centre, dist_to_obstacle):
+        """
+        Inputs: offset_from_centre - pixel dist of obstacle in image transformed to world coords
+                dist_to_obstacle - distance to obstacle
+        Parameters: width - camera_pixel width 
+        Returns x_pos, y_pos in local coordinate frame
+        USAGE self.obs_from_coords(self.depth.x, self.depth.y)
+        """
+
+        
+
+        # Relative orientation in radians of obstacle to robot position
+        theta_relative = np.arctan2(offset_from_centre, dist_to_obstacle) #TODO does order make sense
+
+        # Get Current Yaw
+        current_yaw = quaternion_to_yaw(self.orientation)
+
+        # Yaw in drone frame
+        yaw = current_yaw + theta_relative
+
+        ## Compute obstacle position ##
+        # Get the diagonal distane to obstacle
+        diag_distance = sqrt(offset_from_centre**2 + dist_to_obstacle**2)
+        
+        x_pos = diag_distance*np.sin(yaw)
+        y_pos = diag_distance*np.cos(yaw)
+
+        return x_pos, y_pos
+
+
+
+    def simple_coord_from_pixel(self, dist_to_obstacle):
+        """
+        Inputs: x_pixel - dist_to_obstacle - distance to obstacle
+        Returns x_pos, y_pos in local coordinate frame
+        """
+
+        # Get Current Yaw
+        current_yaw = quaternion_to_yaw(self.orientation)
+
+        ## Compute obstacle position ##            
+        x_pos = dist_to_obstacle*np.sin(current_yaw)
+        y_pos = dist_to_obstacle*np.cos(current_yaw)
+
+        return x_pos, y_pos
