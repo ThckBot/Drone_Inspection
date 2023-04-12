@@ -62,7 +62,9 @@ class DroneFSM():
         rospy.Subscriber('/mavros/local_position/odom', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         #rospy.Subscriber('/mavros/odometry/out', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_position_callback, queue_size=10)
-        rospy.Subscriber("/THCK_depth_publisher_topic", Point, self.depth_callback, queue_size=10)
+
+        self.request_depth_client = rospy.Publisher('/THCK_depth_request_topic', Point, queue_size=10)
+        rospy.Subscriber("/THCK_depth_response_topic", Point, self.depth_response_callback, queue_size=10)
 
         # Instantiate Monocular Camera
         frame_width, frame_height = 640, 480
@@ -88,7 +90,7 @@ class DroneFSM():
         #print("vicon_orientation")
         #print(pose_msg.transform.rotation)
 
-    def depth_callback(self, depth_msg):
+    def depth_response_callback(self, depth_msg):
         self.depth = depth_msg
 
     # Use the transformation matrix to multiply and transform a point 
