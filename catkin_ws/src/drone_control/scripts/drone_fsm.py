@@ -43,6 +43,7 @@ class DroneFSM():
         self.t2 = []
         
         self.state = State()
+        self.depth = Point(x=0,y=0)
         
         self.fsm_state = -1
         self.hz = 10
@@ -61,10 +62,13 @@ class DroneFSM():
         rospy.Subscriber('/mavros/local_position/odom', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         #rospy.Subscriber('/mavros/odometry/out', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_position_callback, queue_size=10)
+        rospy.Subscriber("/THCK_depth_publisher_topic", Point, self.depth_callback, queue_size=10)
 
-        # Instantiate Camera
+        # Instantiate Monocular Camera
         frame_width, frame_height = 640, 480
         self.camera = CSICamera(width=frame_width, height=frame_height, capture_width=frame_width, capture_height=frame_height, capture_fps=30)
+
+
 
     # Callback for the state subscribers
     def state_callback(self, state):
@@ -83,6 +87,9 @@ class DroneFSM():
         #print(pose_msg.transform.translation)
         #print("vicon_orientation")
         #print(pose_msg.transform.rotation)
+
+    def depth_callback(self, depth_msg):
+        self.depth = depth_msg
 
     # Use the transformation matrix to multiply and transform a point 
     def compute_waypoint_transform(self, wp):
@@ -498,6 +505,8 @@ class DroneFSM():
         Parameters: width - camera_pixel width 
         Returns x_pos, y_pos in local coordinate frame
         """
+
+        # USAGE self.obs_from_coords(self.depth.x, self.depth.y)
 
         # Relative orientation in radians of obstacle to robot position
         theta_relative = np.arctan2(offset_from_centre, dist_to_obstacle) #TODO does order make sense
