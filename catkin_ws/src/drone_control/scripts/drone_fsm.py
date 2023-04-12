@@ -454,3 +454,38 @@ class DroneFSM():
             # Assign Colour to Obstacle
             #obs.colour = color
         
+        def coord_from_pixel(self, x_pixel, dist_to_obstacle):
+            """
+            Inputs: x_pixel - pixel coord in image
+                    dist_to_obstacle - distance to obstacle
+            Parameters: width - camera_pixel width 
+            Returns x_pos, y_pos in local coordinate frame
+            """
+
+            # Set Parameters
+            CAMERA_PIXEL_WIDTH = 500
+            CAMERA_SCALE = 30 # TODO Scale should be based on detected obstacle width
+
+            # Get the offset of pixel position from centre of image
+            pixel_offset = x_pixel - (CAMERA_PIXEL_WIDTH/2)
+            
+            # Relative x offset of the obstacle in frame
+            coord_offset = pixel_offset / CAMERA_SCALE 
+
+            # Relative orientation in radians of obstacle to robot position
+            theta_relative = np.arctan2(coord_offset, dist_to_obstacle) #TODO does order make sense
+
+            # Get Current Yaw
+            current_yaw = quaternion_to_yaw(self.orientation)
+
+            # Yaw in drone frame
+            yaw = current_yaw + theta_relative
+
+            ## Compute obstacle position ##
+            # Get the diagonal distane to obstacle
+            diag_distance = sqrt(coord_offset**2 + dist_to_obstacle**2)
+            
+            x_pos = diag_distance*np.sin(yaw)
+            y_pos = diag_distance*np.cos(yaw)
+
+            return x_pos, y_pos
