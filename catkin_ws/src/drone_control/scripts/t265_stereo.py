@@ -36,6 +36,7 @@ import rospy
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import time
+import matplotlib.pyplot as plt
 
 data_left, data_right = None, None
 K_left, D_left, R_left, P_left = None, None, None, None
@@ -126,13 +127,14 @@ try:
     max_disp = min_disp + num_disp
     stereo = cv2.StereoSGBM_create(minDisparity = min_disp,
                                    numDisparities = num_disp,
-                                   blockSize = 16,
-                                   P1 = 8*3*window_size**2,
-                                   P2 = 32*3*window_size**2,
+                                   blockSize = 11,
+                                   P1 = 16*3*window_size**2,
+                                   P2 = 128*3*window_size**2,
+                                #    preFilterCap = 63,
                                    disp12MaxDiff = 1,
-                                   uniquenessRatio = 10,
-                                   speckleWindowSize = 100,
-                                   speckleRange = 32)
+                                   uniquenessRatio = 5,
+                                   speckleWindowSize = 50,
+                                   speckleRange = 16)
 
     # Retreive the stream and intrinsic properties for both cameras
     #profiles = pipe.get_active_profile()
@@ -220,13 +222,25 @@ try:
 
             # re-crop just the valid part of the disparity
             disparity = disparity[:,max_disp:]
+            depth = (K_left[0,0]*0.064) / (disparity + 1e-6) 
+            depth_masked = np.ma.masked_inside(depth,0.8,2)
+            depth_mask = depth_masked.mask
+            print(np.argwhere(depth_mask))
+            depth[~depth_mask] = 0
+            mid_col = np.argmax(np.sum(depth_mask,axis=0))
+            obs_depth = np.average(depth[:,mid_col][depth_mask[:,mid_col]])
+            print('Middle column is:', mid_col)
+            print('Depth is:', obs_depth)
 
             # convert disparity to 0-255 and color it
             disp_vis = 255*(disparity - min_disp)/ num_disp
             disp_color = cv2.applyColorMap(cv2.convertScaleAbs(disp_vis,1), cv2.COLORMAP_JET)
             color_image = cv2.cvtColor(center_undistorted["left"][:,max_disp:], cv2.COLOR_GRAY2RGB)
             if mode == "stack":
-                cv2.imshow(WINDOW_TITLE, np.hstack((color_image, disp_color)))
+                #cv2.imshow(WINDOW_TITLE, np.hstack((color_image, depth)))
+                plt.imshow(depth, vmin=0, vmax = 5)
+                plt.colorbar()
+                plt.show()
             if mode == "overlay":
                 ind = disparity >= min_disp
                 color_image[ind, 0] = disp_color[ind, 0]

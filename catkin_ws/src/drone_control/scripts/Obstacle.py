@@ -28,10 +28,10 @@ class Obstacle:
 
 
 class PathPlanner:
-    def __init__(self, ap_obs_list):
+    def __init__(self, ap_obs_list, resolution = 0.4):
         self.obstacles = ap_obs_list
         self.next_obs = 0
-        self.min_dist = 0.4
+        self.min_dist = resolution
 
     def add_obstacle(self, obstacle):
         self.obstacles[self.next_obs] = obstacle
@@ -42,7 +42,7 @@ class PathPlanner:
     def adjust_waypoint(self, old_wp):
         z = np.array([0,0,1])
         adjust_direction = np.cross(old_wp,z)
-        norm_direction = (self.next_obs.colour)*adjust_direction/np.linalg.norm(adjust_direction)
+        norm_direction = (self.obstacles[self.next_obs].colour)*adjust_direction/np.linalg.norm(adjust_direction)
         new_wp = old_wp + (self.min_dist)*norm_direction 
         
         return new_wp
@@ -56,12 +56,15 @@ class PathPlanner:
     def generate_trajectory(self, next_wp, curr_pos):
         start, end = np.array([curr_pos.x, curr_pos.y, curr_pos.z]), np.array([next_wp.x, next_wp.y, next_wp.z])
         transl = np.array(end - start)
-        num_wp = np.ceil(np.linalg.norm(transl) / self.min_dist)
-        traj = np.linspace(start, end, num_wp)
+        num_wp = int(np.floor(np.linalg.norm(transl) / self.min_dist))
+        print("start", start)
+        print("end", end)
+        traj = np.array([np.linspace(start[0], end[0], num_wp), np.linspace(start[1], end[1], num_wp), np.linspace(start[2], end[2], num_wp) ])
+        print("shape of traj: ", traj.shape)
+        print("num_wpts is: ", num_wp)
+        for i in range(0, num_wp-1, 1):
 
-        for i in range(0, num_wp, 1):
-
-            if self.check_collision(traj[i]):
-                traj[i] = self.adjust_waypoint(traj[i])
+            if self.check_collision(traj[:,i]):
+                traj[:,i] = self.adjust_waypoint(traj[:,i])
 
         return traj
