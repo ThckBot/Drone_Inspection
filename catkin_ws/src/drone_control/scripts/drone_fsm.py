@@ -136,18 +136,14 @@ class DroneFSM():
         T1[:3, 3] = pos1
 
         T2 = np.eye(4)
-        T2[:3, :3] = r2
-        T2[:3, 3] = pos2
+        T2[:3, :3] = np.transpose(r2)
+        T2[:3, 3] = -np.matmul(np.transpose(r2),pos2)
         
         self.t1 = pos1
         self.t2 = pos2
 
         # Compute the transformation matrix between the two poses changes from vicon to local frame
-        T21 = np.matmul(np.linalg.inv(T2), T1)
-        #theta = 0.15
-        #fix_frame = np.array([[np.cos(theta),-np.sin(theta),0, 0],[np.sin(theta),np.cos(theta),0,0],[0,0,1,0],[0,0,0,1]])
-        #T31 = np.matmul(fix_frame,T21)
-        #return T31
+        T21 = np.matmul(T2, T1)
         
         self.vicon_transform = T21
         self.vicon_transform_created = True
