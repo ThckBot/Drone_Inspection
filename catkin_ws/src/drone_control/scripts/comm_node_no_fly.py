@@ -44,6 +44,10 @@ def comm_node():
     wp3 = np.array([0, 2, 0.50])
 
     waypoints = [wp1, wp2, wp3]
+
+    while not rospy.is_shutdown():
+        drone.request_depth_client.publish(Bool(True))
+        drone.rate.sleep()
     
     # start = np.array([drone.position.x, drone.position.y, drone.position.x])
     # start = np.array([0, 0, 0])

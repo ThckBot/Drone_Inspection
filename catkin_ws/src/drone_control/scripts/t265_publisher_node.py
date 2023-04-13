@@ -23,9 +23,10 @@ depth_requested = False
 class t265_stereo:
     def __init__(self):
         rospy.init_node('THCK_depth_publisher')
-        self.pub = rospy.Publisher('/THCK_depth_response_topic', Point, queue_size=10)
-        self.sub = rospy.Subscriber('/THCK_depth_request_topic', Bool, self.depth_request_callback, queue_size=10)
+        self.pub = rospy.Publisher('/THCK_depth_response_topic', Point, queue_size=1)
+        self.sub = rospy.Subscriber('/THCK_depth_request_topic', Bool, self.depth_request_callback, queue_size=1)
         self.rate = rospy.Rate(10)  # Publish at 10 Hz
+        self.depth_requested = False
 
     def depth_request_callback(self,bool_msg):
         self.depth_requested = bool_msg
@@ -121,9 +122,6 @@ class t265_stereo:
         # rectification and undoes the camera distortion. This only has to be done
         # once
         m1type = cv2.CV_32FC1
-
-        # wait for all subscribers to initialize
-        print('waiting...')
         time.sleep(5)
 
         print('done waiting, init undistort')
@@ -155,23 +153,28 @@ class t265_stereo:
         # re-crop just the valid part of the disparity
         disparity = disparity[:,max_disp:]
         depth = (K_left[0,0]*0.064) / (disparity + 1e-6) 
-        depth_masked = np.ma.masked_inside(depth,0.8,2)
+        depth_masked = np.ma.masked_inside(depth,1.2,3)
         depth_mask = depth_masked.mask
         depth[~depth_mask] = 0
         mid_col = np.argmax(np.sum(depth_mask,axis=0))
         obs_depth = np.average(depth[:,mid_col][depth_mask[:,mid_col]])
         print('Middle column is:', mid_col)
         print('Depth is:', obs_depth)
-        coords = [obs_depth,mid_col]
+        coords = Point()
+        coords.x = (mid_col-stereo_cx)*obs_depth/stereo_focal_px
+        print('X is: ', coords.x)
+        coords.y = 0
+        coords.z = obs_depth
         self.pub.publish(coords)
         self.rate.sleep()
 
 
 if __name__ == '__main__':
+    print('waiting...')
     stereo = t265_stereo()
     while not rospy.is_shutdown():
         if stereo.depth_requested:
             stereo.gen_obs_coord()
             stereo.depth_requested = False
         else:
-            rospy.spin()
+            stereo.rate.sleep()

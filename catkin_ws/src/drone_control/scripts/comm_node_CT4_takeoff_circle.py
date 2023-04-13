@@ -90,7 +90,7 @@ def comm_node():
     
 
 
-    drone.hover_test(5)
+    drone.hover_test(12)
     yaw_list = [0, np.pi/2, np.pi, 3*np.pi/2]
     drone.scan_obstacles(yaw_list, record_obstacles=False)
 

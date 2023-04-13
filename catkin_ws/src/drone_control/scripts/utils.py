@@ -20,7 +20,6 @@ def quaternion_to_yaw(q):
     INPUTS: quaternion q.x,y,z,w
     OUTPUTS: yaw calculated from quaternion in radians
     '''
-    x, y, z, w = q
+    x, y, z, w = q.x, q.y, q.z, q.w
     yaw = math.atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
-    yaw_rad = yaw * np.pi / 180
     return yaw_rad

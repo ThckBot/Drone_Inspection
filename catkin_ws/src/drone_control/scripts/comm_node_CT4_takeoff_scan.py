@@ -86,9 +86,9 @@ def comm_node():
 
     # Arm the drone
     drone.arm()
-    drone.takeoff(0.50)
+    drone.takeoff(0.75)
     
-    drone.hover_test(5)
+    drone.hover_test(10)
 
     # Scan Obstacles
     yaw_list = [0, np.pi/2, np.pi, 3*np.pi/2]
@@ -99,6 +99,7 @@ def comm_node():
 
 
     drone.land()
+    np.save('positions.npy',np.array(drone.positions).transpose)
     drone.shutdown()
     rospy.sleep(0.2)
     

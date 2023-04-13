@@ -5,7 +5,8 @@ import std_msgs
 import numpy as np
 from geometry_msgs.msg import PoseStamped,TransformStamped, Point
 from nav_msgs.msg import Odometry
-from mavros_msgs.msg import State 
+from mavros_msgs.msg import State
+from std_msgs.msg import Bool
 from mavros_msgs.srv import CommandBool, SetMode
 from tf.transformations import *
 from mavros_msgs.msg import Waypoint, WaypointList, WaypointReached
@@ -42,7 +43,7 @@ class DroneFSM():
         self.t2 = []
         
         self.state = State()
-        self.depth = Point(x=0,y=0)
+        self.obs = Point(x=0,y=0,z=0)
         
         self.fsm_state = -1
         self.hz = 10
@@ -62,8 +63,8 @@ class DroneFSM():
         #rospy.Subscriber('/mavros/odometry/out', Odometry, self.local_position_callback, queue_size=10) # publishes both position and orientation (quaternion)
         rospy.Subscriber("/vicon/ROB498_Drone/ROB498_Drone", TransformStamped, self.vicon_position_callback, queue_size=10)
 
-        self.request_depth_client = rospy.Publisher('/THCK_depth_request_topic', Point, queue_size=10)
-        rospy.Subscriber("/THCK_depth_response_topic", Point, self.depth_response_callback, queue_size=10)
+        self.request_depth_client = rospy.Publisher('/THCK_depth_request_topic', Bool, queue_size=1)
+        rospy.Subscriber("/THCK_depth_response_topic", Point, self.depth_response_callback, queue_size=1)
 
         # Instantiate Monocular Camera
         frame_width, frame_height = 640, 480
@@ -77,6 +78,7 @@ class DroneFSM():
 
     # Callback for the pose subscriber
     def local_position_callback(self, pose_msg):
+        print('in callback')
         self.position = pose_msg.pose.pose.position
         self.orientation = pose_msg.pose.pose.orientation
 
@@ -90,7 +92,7 @@ class DroneFSM():
         #print(pose_msg.transform.rotation)
 
     def depth_response_callback(self, depth_msg):
-        self.depth = depth_msg
+        self.obs = depth_msg
 
     # Use the transformation matrix to multiply and transform a point 
     def compute_waypoint_transform(self, wp):
@@ -402,6 +404,7 @@ class DroneFSM():
         for dir in directions:
             # Set the set point
             print("Scan circle: trying to face direction: ", dir)
+
             self.sp_pos.x = self.position.x
             self.sp_pos.y = self.position.y
             self.sp_pos.z = self.position.z
@@ -437,8 +440,12 @@ class DroneFSM():
             current_yaw = quaternion_to_yaw(self.orientation)
 
             # Publish current positions while yaw error > 5 degrees/.085 rad
-            while abs(current_yaw - theta) > 0.17:
+            while abs(current_yaw - theta) > 0.18:
                 self.publish_setpoint(self.sp_pos, yaw = theta)
+                self.sp_pos.x = 0
+                self.sp_pos.y = 0
+                self.sp_pos.z = 0.75
+                print("current_yaw", current_yaw)
                 current_yaw = quaternion_to_yaw(self.orientation)
 
             # TODO check if this hover is necessary
@@ -446,17 +453,24 @@ class DroneFSM():
 
             if record_obstacles == False:
                 continue
+            obs_list = []
 
-            self.depth = None
-            self.request_depth_client.publish(True)
+            for i in range(0,5,1):                
+                self.obs = None
+                self.request_depth_client.publish(True)
 
-            while (self.depth == None) and (not rospy.is_shutdown):
-                self.hover_test(0.5)
+                while (self.obs == None) and (not rospy.is_shutdown()):
+                    self.hover_test(0.5)
+                    self.rate.sleep()
 
+                obs_list += [[self.obs.x,self.obs.y,self.obs.z]]
+                
             self.request_depth_client.publish(False)
 
+            avg_obs = np.mean(obs_list,axis=0)
+
             # Get the udated positions
-            obs_xpos, obs_ypos = self.get_obs_coords(self.depth.x, self.depth.y)
+            obs_xpos, obs_ypos = self.get_obs_coords(avg_obs[0], avg_obs[2])
 
             #  Update the position of this coordinate 
             obs_coords[i,0] = obs_xpos
@@ -500,16 +514,14 @@ class DroneFSM():
 
         return x_pos, y_pos
 
-        
+                                                                                                                                                                                                    
     def get_obs_coords(self, offset_from_centre, dist_to_obstacle):
         """
         Inputs: offset_from_centre - pixel dist of obstacle in image transformed to world coords
                 dist_to_obstacle - distance to obstacle
         Parameters: width - camera_pixel width 
-        Returns x_pos, y_pos in local coordinate frame
-        USAGE self.obs_from_coords(self.depth.x, self.depth.y)
+        Returns              
         """
-
         # Relative orientation in radians of obstacle to robot position
         theta_relative = np.arctan2(offset_from_centre, dist_to_obstacle) #TODO does order make sense
 
@@ -527,6 +539,7 @@ class DroneFSM():
         y_pos = diag_distance*np.cos(yaw)
 
         return x_pos, y_pos
+
 
 
 
