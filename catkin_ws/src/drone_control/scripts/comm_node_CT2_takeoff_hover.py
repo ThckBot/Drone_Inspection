@@ -86,9 +86,9 @@ def comm_node():
 
     # Arm the drone
     drone.arm()
-    drone.takeoff(0.50)
+    drone.takeoff(0.75)
     
-    drone.hover_test(5)
+    drone.hover_test(12)
 
     print("Want to test if it will stay in place after hover is over: ")
     print("Going to sleep and see if controller keeps the drone at height: ")

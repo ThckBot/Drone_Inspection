@@ -12,7 +12,7 @@ from mavros_msgs.msg import Waypoint, WaypointList, WaypointReached
 from mavros_msgs.srv import WaypointPush, WaypointPushRequest, WaypointClear, WaypointClearRequest
 import message_filters
 
-from jetcam.csi_camera import CSICamera
+#from jetcam.csi_camera import CSICamera
 
 from math import *
 import numpy as np
@@ -67,7 +67,7 @@ class DroneFSM():
 
         # Instantiate Monocular Camera
         frame_width, frame_height = 640, 480
-        self.camera = CSICamera(width=frame_width, height=frame_height, capture_width=frame_width, capture_height=frame_height, capture_fps=30)
+        #self.camera = CSICamera(width=frame_width, height=frame_height, capture_width=frame_width, capture_height=frame_height, capture_fps=30)
 
 
 

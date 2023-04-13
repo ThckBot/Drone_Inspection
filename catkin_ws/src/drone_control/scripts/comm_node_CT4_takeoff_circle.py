@@ -86,8 +86,10 @@ def comm_node():
 
     # Arm the drone
     drone.arm()
-    drone.takeoff(0.50)
+    drone.takeoff(0.75)
     
+
+
     drone.hover_test(5)
 
     drone.scan_obstacles(record_obstacles=False)
