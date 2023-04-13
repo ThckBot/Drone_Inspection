@@ -92,7 +92,7 @@ def comm_node():
 
     print("Want to test if it will stay in place after hover is over: ")
     print("Going to sleep and see if controller keeps the drone at height: ")
-    rospy.sleep(5)
+    rospy.spin()
     print("Waking up")
 
     drone.land()
