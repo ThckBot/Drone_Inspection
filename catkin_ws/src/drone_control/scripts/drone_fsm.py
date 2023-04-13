@@ -36,8 +36,7 @@ class DroneFSM():
         self.waypoints = []
         self.vicon_waypoints= []
         self.sp_pos = Point()
-        self.obstacle_positions =[] #TODO add subscriber to obstacle position
-
+        
         self.vicon_transform = np.identity(4) # Default transform is all 1s
         self.t1 = []
         self.t2 = []
@@ -417,27 +416,19 @@ class DroneFSM():
         
 
 
-    def scan_obstacles(self):
+    def scan_obstacles(self, yaw_list):
         '''
-        Input: None
-        Output: 
+        Input: yaw_list Nx1 list of different yaws (in RAD) where we expect to see obstacles
+        Output: 4x2 np.array of obstacles coords
         Based on the current positions stored in self.obstacle_positions 
         the drone will turn to face each obstacle. It will then check the colour 
         using a colour check funciton and finally assing this to the colour property of the function
         '''
 
-        for i,obs in enumerate(self.obstacle_positions):
-            # Get relative orientation by
-            # Get direciton vector
-            self.sp_pos.x = self.position.x
-            self.sp_pos.y = self.position.y
-            self.sp_pos.z = self.position.z
-
-            d = np.array([obs[0]-self.position.x, obs[1]-self.position.y, obs[2]-self.position.z])
-
-            # Get yaw between direction vector in degrees
-            theta = np.arctan2(d[1], d[0])
-            theta_rad = theta * np.pi / 180
+        for i,theta in enumerate(yaw_list):
+            print("Scanning position: ", theta)
+        
+            obs_coords = np.zeros((4,2))
 
             # Extract current orientation
             x = self.orientation.x
@@ -448,24 +439,22 @@ class DroneFSM():
             # Get yaw in degrees
             current_yaw = quaternion_to_yaw(self.orientation)
 
-            # Publish current positions while yaw error > 10 degrees/.17 rad
+            # Publish current positions while yaw error > 5 degrees/.085 rad
             while abs(current_yaw - theta) > 0.17:
-                self.publish_setpoint(self.sp_pos, yaw = theta_rad)
+                self.publish_setpoint(self.sp_pos, yaw = theta)
                 current_yaw = quaternion_to_yaw(self.orientation)
+
+            # TODO check if this hover is necessary
+            self.hover_test(1)
 
             # Get the udated positions
             obs_xpos, obs_ypos = self.get_obs_coords(self.depth.x, self.depth.y)
 
-            # TODO Update the position of this coordinate 
-            self.obstacle_positions[i][0] = obs_xpos
-            self.obstacle_positions[i][1] = obs_ypos
+            #  Update the position of this coordinate 
+            obs_coords[i,0] = obs_xpos
+            obs_coords[i,1] = obs_ypos
 
-            # Detect Colour
-            # TODO
-            #color self.detect_colour()
-            
-            # Assign Colour to Obstacle
-            #obs.colour = color
+        return obs_coords
         
     def coord_from_pixel(self, x_pixel, dist_to_obstacle):
         """
