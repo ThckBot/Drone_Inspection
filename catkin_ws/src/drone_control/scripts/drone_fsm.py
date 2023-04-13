@@ -416,9 +416,10 @@ class DroneFSM():
         
 
 
-    def scan_obstacles(self, yaw_list):
+    def scan_obstacles(self, yaw_list, record_obstacles = True):
         '''
         Input: yaw_list Nx1 list of different yaws (in RAD) where we expect to see obstacles
+               record obstacles: if testing then set record_obstacles to False to test movement only 
         Output: 4x2 np.array of obstacles coords
         Based on the current positions stored in self.obstacle_positions 
         the drone will turn to face each obstacle. It will then check the colour 
@@ -446,6 +447,9 @@ class DroneFSM():
 
             # TODO check if this hover is necessary
             self.hover_test(1)
+ 
+            if record_obstacles == False:
+                continue
 
             # Get the udated positions
             obs_xpos, obs_ypos = self.get_obs_coords(self.depth.x, self.depth.y)
