@@ -31,7 +31,8 @@ class PathPlanner:
     def __init__(self, ap_obs_list, resolution = 0.4):
         self.obstacles = ap_obs_list
         self.next_obs = 0
-        self.min_dist = resolution
+        self.min_dist = 0.7
+        self.resolution = 0.5
 
     def add_obstacle(self, obstacle):
         self.obstacles[self.next_obs] = obstacle
@@ -48,15 +49,14 @@ class PathPlanner:
         return new_wp
 
     def check_collision(self, waypoint):
-        obst = self.obstacles[self.next_obs].coords
-        if np.linalg.norm(waypoint[0:2] - obst) < self.min_dist:
-            return True
+        for obst in self.obstacles:
+            if np.linalg.norm(waypoint[0:2] - obst.coords) < self.min_dist:
+                return True
         return False
 
-    def generate_trajectory(self, next_wp, curr_pos):
-        start, end = np.array([curr_pos.x, curr_pos.y, curr_pos.z]), np.array([next_wp.x, next_wp.y, next_wp.z])
+    def generate_trajectory(self, start, end):
         transl = np.array(end - start)
-        num_wp = int(np.floor(np.linalg.norm(transl) / self.min_dist))
+        num_wp = int(np.floor(np.linalg.norm(transl) / self.resolution))
         print("start", start)
         print("end", end)
         traj = np.array([np.linspace(start[0], end[0], num_wp), np.linspace(start[1], end[1], num_wp), np.linspace(start[2], end[2], num_wp) ])
