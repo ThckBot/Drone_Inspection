@@ -443,9 +443,17 @@ class DroneFSM():
 
             # TODO check if this hover is necessary
             self.hover_test(1)
- 
+
             if record_obstacles == False:
                 continue
+
+            self.depth = None
+            self.request_depth_client.publish(True)
+
+            while (self.depth == None) and (not rospy.is_shutdown):
+                self.hover_test(0.5)
+
+            self.request_depth_client.publish(False)
 
             # Get the udated positions
             obs_xpos, obs_ypos = self.get_obs_coords(self.depth.x, self.depth.y)
@@ -501,8 +509,6 @@ class DroneFSM():
         Returns x_pos, y_pos in local coordinate frame
         USAGE self.obs_from_coords(self.depth.x, self.depth.y)
         """
-
-        
 
         # Relative orientation in radians of obstacle to robot position
         theta_relative = np.arctan2(offset_from_centre, dist_to_obstacle) #TODO does order make sense

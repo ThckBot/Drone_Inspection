@@ -22,7 +22,6 @@ def comm_node():
 
 
     # TODO check transformation
-    # TODO check path plan
     # TODO check talking and listening
 
     computed = False
@@ -47,17 +46,17 @@ def comm_node():
     waypoints = [wp1, wp2, wp3]
     
     # start = np.array([drone.position.x, drone.position.y, drone.position.x])
-    start = np.array([0, 0, 0])
-    traj = start.reshape((3,1))
-    for wp in waypoints:
+    # start = np.array([0, 0, 0])
+    # traj = start.reshape((3,1))
+    # for wp in waypoints:
         
-        sub_traj = PathPlan.generate_trajectory(start, wp)
-        print('Trajectory shape',traj.shape)
-        print('Sub trajectory shape',sub_traj.shape)
-        traj = np.hstack((traj, sub_traj))
-        start = wp
+    #     sub_traj = PathPlan.generate_trajectory(start, wp)
+    #     print('Trajectory shape',traj.shape)
+    #     print('Sub trajectory shape',sub_traj.shape)
+    #     traj = np.hstack((traj, sub_traj))
+    #     start = wp
 
-    print(np.transpose(traj))
+    # print(np.transpose(traj))
 
 
 
