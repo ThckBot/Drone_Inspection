@@ -448,24 +448,32 @@ class DroneFSM():
 
             # Get yaw in degrees
             current_yaw = quaternion_to_yaw(self.orientation)
+            
             print("Getting into position")
             # Publish current positions while yaw error > 5 degrees/.085 rad
-
             while True:
                 if abs(current_yaw - theta) > 0.18:
                     print("reached desired yaw")
                     print("current_yaw", current_yaw)
                     print("theta",theta)
                     break
-                self.publish_setpoint(self.sp_pos, yaw = theta)
                 self.sp_pos.x = 0
                 self.sp_pos.y = 0
                 self.sp_pos.z = 1.5
+                self.publish_setpoint(self.sp_pos, yaw = theta)
                 current_yaw = quaternion_to_yaw(self.orientation)          
                 print("stuck in getting pos")
 
             if record_obstacles == False:
                 continue
+            
+            # Return to ground to record obstacles
+            print("Returning to ground to record obstacles")
+            while (self.position.z > 0.01):
+                print(self.position.z)
+                self.sp_pos.z = self.position.z - 0.
+                self.publish_setpoint(self.sp_pos, yaw = theta)
+                self.rate.sleep()
 
             # Average over 5 depth requests
             obs_list = []
