@@ -81,57 +81,23 @@ def comm_node():
 
     print('This is a dummy drone node to test communication with the ground control')
 
-    # Create Path Planner Object
+    computed = False
+    done_waypoints = False
 
-    obstacles = np.array([[1,0], [0,1]])
-    obs1 = Obstacle(obstacles[0,0], obstacles[0,1], -1)
-    obs2 = Obstacle(obstacles[1,0], obstacles[1,1], 1)
-
-    obs_list = [obs1, obs2]
-
-    PathPlan = PathPlanner(obs_list)
-
-    # Create Test waypoints
-    wp1 = np.array([2, 0, 0.50])
-    wp2 = np.array([0, 0, 0.50])
-    wp3 = np.array([0, 2, 0.50])
-
-    waypoints = [wp1, wp2, wp3]
-
-    print('Drone Position')
-    print(drone.position)
-    print('Vicon Position')
-    print(drone.vicon_position)
-    #drone.compute_vicon_to_ekf_tf()
-    print('Transformation')
-    print(drone.vicon_transform)
-
+    # Arm the drone
     drone.arm()
     drone.takeoff(0.75)
-    drone.hover_test(10)
+    
 
-    # Generate the trajectory while in air
-    start = np.array([drone.position.x, drone.position.y, drone.position.x])
-    traj = start.reshape((3,1))
-    for wp in waypoints:
-        
-        sub_traj = PathPlan.generate_trajectory(start, wp)
-        print('Trajectory shape',traj.shape)
-        print('Sub trajectory shape',sub_traj.shape)
-        traj = np.hstack((traj, sub_traj))
-        start = wp
+    drone.hover_test(12)
+    drone.compute_vicon_to_ekf_tf()
 
-    traj = np.transpose(traj)
-
-
-    # Create Trajectory
-    for wp in traj:
-        drone.nav_waypoints(wp)
-        if wp in waypoints:
-            drone.hover_test(3)
+    print("Want to test if it will stay in place after hover is over: ")
+    print("Going to sleep and see if controller keeps the drone at height: ")
+    rospy.spin()
+    print("Waking up")
 
     drone.land()
-    np.save('positions.npy',np.array(drone.positions).transpose)
     drone.shutdown()
     rospy.sleep(0.2)
     
