@@ -122,7 +122,7 @@ class t265_stereo:
         # rectification and undoes the camera distortion. This only has to be done
         # once
         m1type = cv2.CV_32FC1
-        time.sleep(5)
+        time.sleep(1)
 
         print('done waiting, init undistort')
 
@@ -160,7 +160,10 @@ class t265_stereo:
         obs_depth = np.average(depth[:,mid_col][depth_mask[:,mid_col]])
         print('Middle column is:', mid_col)
         print('Depth is:', obs_depth)
+        print("Image shape", depth_mask.shape)
         coords = Point()
+        stereo_cx = 250
+        print("Cx is: ", stereo_cx)
         coords.x = (mid_col-stereo_cx)*obs_depth/stereo_focal_px
         print('X is: ', coords.x)
         coords.y = 0
