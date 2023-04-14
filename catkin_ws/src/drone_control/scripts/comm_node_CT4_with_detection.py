@@ -120,17 +120,17 @@ def comm_node():
     for wp in waypoints:
         print("Generate path for wp: ", wp)
         sub_traj = PathPlan.generate_trajectory(start, wp)
-        print('Trajectory shape',traj.shape)
-        print('Sub trajectory shape',sub_traj.shape)
         traj = np.hstack((traj, sub_traj))
         start = wp
 
     traj = np.transpose(traj)
 
     # Go to the positions
-    for i in range(0, traj.shape[1]):
-       print("Navigating to waypoint: ", traj[:, i])
-       drone.nav_waypoints(traj[:, i].T)
+    drone.fsm_state = "Waypoints"
+    for wp in traj:
+        print("=========Navigating to waypoint=======: ", traj[:, i])
+        drone.nav_waypoints(wp)
+
 
     drone.hover_test(5)
     drone.land()

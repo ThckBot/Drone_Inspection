@@ -78,7 +78,7 @@ class DroneFSM():
 
     # Callback for the pose subscriber
     def local_position_callback(self, pose_msg):
-        print('in callback')
+        #print('in callback')
         self.position = pose_msg.pose.pose.position
         self.orientation = pose_msg.pose.pose.orientation
 
@@ -237,25 +237,23 @@ class DroneFSM():
         while self.position == None and not rospy.is_shutdown():
             print('Waiting for position...')
             self.rate.sleep()
-        self.sp_pos = self.position
+
+
+        self.sp_pos.x = self.position.x
+        self.sp_pos.y = self.position.y
+        self.sp_pos.z = self.position.z
+
         print("Height is: ", height)
         print("self.orientation is: ", self.orientation)
         print("self.position.z is: ", self.position)
         print(rospy.is_shutdown())
         while not rospy.is_shutdown():
-            if self.position.z < height -0.02:
+            if self.position.z > height -0.15:
                 print("Reached height in takeoff")
                 print("self.position.z", self.position.z)
                 print("height", height)
                 break
-            #print(self.state.armed)
-            #print('z_position: ', self.position.z)
-            #print('height: ', height)
             self.sp_pos.z = height
-
-            #print('setpoint: ', self.sp_pos)
-            #print(self.state.armed)
-            #print(self.state.mode)
             self.publish_setpoint(self.sp_pos)
             self.rate.sleep()
 
@@ -276,7 +274,9 @@ class DroneFSM():
     def hover_test(self, hover_time):
         print('Position holding...')
         t0 = time.time()
-        self.sp_pos = self.position
+        self.sp_pos.x = self.position.x
+        self.sp_pos.y = self.position.y
+        self.sp_pos.z = self.position.z
         t = time.time()
         while (not rospy.is_shutdown()) and hover_time >= t-t0:
             t = time.time()

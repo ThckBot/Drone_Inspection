@@ -108,7 +108,7 @@ def comm_node():
 
     drone.arm()
     drone.takeoff(0.75)
-    drone.hover_test(10)
+    drone.hover_test(2)
 
     # Generate the trajectory while in air
     start = np.array([drone.position.x, drone.position.y, drone.position.x])
@@ -116,19 +116,18 @@ def comm_node():
     for wp in waypoints:
         
         sub_traj = PathPlan.generate_trajectory(start, wp)
-        print('Trajectory shape',traj.shape)
-        print('Sub trajectory shape',sub_traj.shape)
         traj = np.hstack((traj, sub_traj))
         start = wp
 
     traj = np.transpose(traj)
 
 
-    # Create Trajectory
+    # Navigate waypoints
+    drone.fsm_state = "Waypoints"
     for wp in traj:
         drone.nav_waypoints(wp)
-        if wp in waypoints:
-            drone.hover_test(3)
+        #if wp in waypoints:
+            #drone.hover_test(3)
 
     drone.land()
     np.save('positions.npy',np.array(drone.positions).transpose)
