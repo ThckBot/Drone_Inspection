@@ -147,7 +147,7 @@ def comm_node():
                 print("=========Navigating to waypoint=======: ", )
                 drone.nav_waypoints(wp, vicon_milestones = False, vicon_pose = False)
                 drone.hover_test(3) # Hover momentarily b/w waypoints
-            drone.hover()
+            drone.land()
         elif STATE == 'Land':
             print('Comm node: Landing...')
             drone.land()
