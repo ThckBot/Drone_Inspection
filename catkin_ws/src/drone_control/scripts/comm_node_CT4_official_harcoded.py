@@ -111,11 +111,6 @@ def comm_node():
                 drone.nav_waypoints(wp, vicon_milestones = True, vicon_pose = False)
                 drone.hover_test(3) # Hover momentarily b/w waypoints
 
-            # for waypt in WAYPOINTS:
-            #     waypt[1] = waypt[1]-1 
-
-            #     drone.nav_waypoints(waypt, vicon_milestones = True, vicon_pose = False) # navigate to waypoint
-            #     drone.hover_test(3) # hover after finishing waypoints
             
             # Set to done state to prevent going through again
             STATE = 'Waypoints_Complete'
@@ -125,11 +120,17 @@ def comm_node():
             print('Comm node: Launching...')
             drone.arm()
             drone.takeoff(1.5)
+            drone.hover()
 
             # Create Path Planner Object
             yaw_list = [0, np.pi/2, np.pi, 3*np.pi/2]
-            obstacles = drone.scan_obstacles(yaw_list)
+            # obstacles = drone.scan_obstacles(yaw_list)
+            obstacles = np.array([[-1.929,-2.994],[2.002,-1.996],
+                                  [2.434,1.805],[-1.674,1.498]])
 
+            red = [2, -1.79, -1.57, 1.60]
+
+            green_obs = [-1.88, -1.85, 2.328, 2.276]
             # Scan obstacles
             obs1 = Obstacle(obstacles[0,0], obstacles[0,1], -1)
             obs2 = Obstacle(obstacles[1,0], obstacles[1,1], 1)
@@ -143,11 +144,7 @@ def comm_node():
             obs_list = [obs1, obs2, obs3, obs4]
         elif STATE == 'Test':
             print('Comm node: Testing...')
-            # Nav to waypoints
-            for wp in traj:
-                print("=========Navigating to waypoint=======: ", wp)
-                drone.nav_waypoints(wp, vicon_milestones = True, vicon_pose = False)
-                drone.hover_test(3) # Hover momentarily b/w waypoints
+            drone.hover()
         elif STATE == 'Land':
             print('Comm node: Landing...')
             drone.land()
