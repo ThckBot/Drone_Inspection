@@ -162,7 +162,7 @@ class t265_stereo:
         print('Depth is:', obs_depth)
         #print("Image shape", depth_mask.shape)
         coords = Point()
-        stereo_cx = 250
+        #stereo_cx = 250
         #print("Cx is: ", stereo_cx)
         coords.x = (mid_col-stereo_cx)*obs_depth/stereo_focal_px
         print('X is: ', coords.x)

@@ -434,11 +434,11 @@ class DroneFSM():
         the drone will turn to face each obstacle. It will then check the colour 
         using a colour check funciton and finally assing this to the colour property of the function
         '''
-
+        obs_coords = np.zeros((4,2))
         for i,theta in enumerate(yaw_list):
             print("=====Scanning position: ======", theta)
         
-            obs_coords = np.zeros((4,2))
+            
 
             # Extract current orientation
             x = self.orientation.x
@@ -559,8 +559,8 @@ class DroneFSM():
         # Get the diagonal distane to obstacle
         diag_distance = sqrt(offset_from_centre**2 + dist_to_obstacle**2)
         
-        x_pos = diag_distance*np.cos(yaw)
-        y_pos = diag_distance*np.sin(yaw)
+        x_pos = diag_distance*np.cos(yaw) + self.position.x
+        y_pos = diag_distance*np.sin(yaw) + self.position.y
 
         return x_pos, y_pos
 
