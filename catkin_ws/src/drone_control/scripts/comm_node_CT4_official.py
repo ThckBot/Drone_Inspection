@@ -118,14 +118,15 @@ def comm_node():
                 drone.nav_waypoints(wp, vicon_milestones = True, vicon_pose = False)
                 drone.hover_test(3) # Hover momentarily b/w waypoints
 
-            # for waypt in WAYPOINTS:
-            #     waypt[1] = waypt[1]-1 
+            for waypt in WAYPOINTS:
+                waypt[1] = waypt[1]-1 
 
-            #     drone.nav_waypoints(waypt, vicon_milestones = True, vicon_pose = False) # navigate to waypoint
-            #     drone.hover_test(3) # hover after finishing waypoints
+                drone.nav_waypoints(waypt, vicon_milestones = True, vicon_pose = False) # navigate to waypoint
+                drone.hover_test(3) # hover after finishing waypoints
             
             # Set to done state to prevent going through again
             STATE = 'Waypoints_Complete'
+
         # Your code goes here
         if STATE == 'Launch':
             print('Comm node: Launching...')
