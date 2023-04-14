@@ -84,18 +84,15 @@ def comm_node():
     # Stored list of obstacles 
     obs_list = []
 
-    # Create Test waypoints
-    wp1 = np.array([2, 0, 0.75])
-    wp2 = np.array([0, 0, 0.75])
-    wp3 = np.array([0, 2, 0.75])
-
-    waypoints = [wp1, wp2, wp3]
 
     while not rospy.is_shutdown():
         if WAYPOINTS_RECEIVED:
             STATE = 'Waypoints'
             drone.fsm_state = STATE
             print('Waypoints:\n', WAYPOINTS)
+
+
+            drone.compute_vicon_to_ekf_tf()
 
             print("Calling path Planner and generating path")
             PathPlan = PathPlanner(obs_list)
@@ -106,23 +103,14 @@ def comm_node():
             print("For each waypoint")
             for wp in WAYPOINTS:
                 print("Generate path for wp: ", wp)
-                sub_traj = PathPlan.generate_trajectory(start, wp)
+
+                wp_trans = drone.compute_waypoint_transform(wp)
+                sub_traj = PathPlan.generate_trajectory(start, wp_trans)
                 traj = np.hstack((traj, sub_traj))
-                start = wp
+                start = wp_trans
 
             traj = np.transpose(traj)
 
-            # Nav to waypoints
-            for wp in traj:
-                print("=========Navigating to waypoint=======: ", traj[:, i])
-                drone.nav_waypoints(wp, vicon_milestones = True, vicon_pose = False)
-                drone.hover_test(3) # Hover momentarily b/w waypoints
-
-            # for waypt in WAYPOINTS:
-            #     waypt[1] = waypt[1]-1 
-
-            #     drone.nav_waypoints(waypt, vicon_milestones = True, vicon_pose = False) # navigate to waypoint
-            #     drone.hover_test(3) # hover after finishing waypoints
             
             # Set to done state to prevent going through again
             STATE = 'Waypoints_Complete'
@@ -149,8 +137,18 @@ def comm_node():
             print("obs3: ", obs3.coords)
             print("obs4: ", obs4.coords)
             obs_list = [obs1, obs2, obs3, obs4]
+
+            # Go back to hovering height
+            drone.takeoff(1.5)
+            drone.hover()
+
         elif STATE == 'Test':
             print('Comm node: Testing...')
+            # Nav to waypoints
+            for wp in traj:
+                print("=========Navigating to waypoint=======: ", )
+                drone.nav_waypoints(wp, vicon_milestones = False, vicon_pose = False)
+                drone.hover_test(3) # Hover momentarily b/w waypoints
             drone.hover()
         elif STATE == 'Land':
             print('Comm node: Landing...')
