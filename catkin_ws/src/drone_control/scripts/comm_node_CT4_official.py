@@ -84,13 +84,6 @@ def comm_node():
     # Stored list of obstacles 
     obs_list = []
 
-    # Create Test waypoints
-    wp1 = np.array([2, 0, 0.75])
-    wp2 = np.array([0, 0, 0.75])
-    wp3 = np.array([0, 2, 0.75])
-
-    waypoints = [wp1, wp2, wp3]
-
     while not rospy.is_shutdown():
         if WAYPOINTS_RECEIVED:
             STATE = 'Waypoints'
@@ -114,7 +107,7 @@ def comm_node():
 
             # Nav to waypoints
             for wp in traj:
-                print("=========Navigating to waypoint=======: ", traj[:, i])
+                print("=========Navigating to waypoint=======: ", wp)
                 drone.nav_waypoints(wp, vicon_milestones = True, vicon_pose = False)
                 drone.hover_test(3) # Hover momentarily b/w waypoints
 
@@ -132,7 +125,6 @@ def comm_node():
             print('Comm node: Launching...')
             drone.arm()
             drone.takeoff(1.5)
-            drone.hover()
 
             # Create Path Planner Object
             yaw_list = [0, np.pi/2, np.pi, 3*np.pi/2]
@@ -151,7 +143,11 @@ def comm_node():
             obs_list = [obs1, obs2, obs3, obs4]
         elif STATE == 'Test':
             print('Comm node: Testing...')
-            drone.hover()
+            # Nav to waypoints
+            for wp in traj:
+                print("=========Navigating to waypoint=======: ", wp)
+                drone.nav_waypoints(wp, vicon_milestones = True, vicon_pose = False)
+                drone.hover_test(3) # Hover momentarily b/w waypoints
         elif STATE == 'Land':
             print('Comm node: Landing...')
             drone.land()
