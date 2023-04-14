@@ -551,8 +551,8 @@ class DroneFSM():
         # Get the diagonal distane to obstacle
         diag_distance = sqrt(offset_from_centre**2 + dist_to_obstacle**2)
         
-        x_pos = diag_distance*np.sin(yaw)
-        y_pos = diag_distance*np.cos(yaw)
+        x_pos = diag_distance*np.cos(yaw)
+        y_pos = diag_distance*np.sin(yaw)
 
         return x_pos, y_pos
 

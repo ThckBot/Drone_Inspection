@@ -99,7 +99,7 @@ def comm_node():
 
     print("Scanning OBstacles")
     obstacles = drone.scan_obstacles(yaw_list)
-    obs1 = Obstacle(obstacles[0,0], obstacles[0,1], -1)
+    obs1 = Obstacle(obstacles[0,0], obstacles[0,1], -1)        # Relative orientation in radians of obstacle to robot position
     obs2 = Obstacle(obstacles[1,0], obstacles[1,1], 1)
     obs3 = Obstacle(obstacles[2,0], obstacles[2,1], -1)
     obs4 = Obstacle(obstacles[3,0], obstacles[3,1], 1)
@@ -111,6 +111,8 @@ def comm_node():
     obs_list = [obs1, obs2, obs3, obs4]
 
     drone.hover_test(2)
+
+
     drone.land()
     drone.shutdown()
     rospy.sleep(0.2)
