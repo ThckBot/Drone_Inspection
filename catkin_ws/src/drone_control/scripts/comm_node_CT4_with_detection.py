@@ -84,7 +84,7 @@ def comm_node():
 
     # Start with arming
     drone.arm()
-    drone.takeoff(0.75)
+    drone.takeoff(1.5)
     drone.hover_test(10)
 
     # Create Test waypoints
@@ -132,7 +132,7 @@ def comm_node():
         drone.nav_waypoints(wp)
 
 
-    drone.hover_test(5)
+    drone.hover_test(2)
     drone.land()
     drone.shutdown()
     rospy.sleep(0.2)
