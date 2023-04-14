@@ -145,7 +145,7 @@ class DroneFSM():
         self.t2 = pos2
 
         # Compute the transformation matrix between the two poses changes from vicon to local frame
-        T21 = np.matmul(T2, T1)
+        T21 = np.matmul(T1, T2)
         
         self.vicon_transform = T21
         self.vicon_transform_created = True
