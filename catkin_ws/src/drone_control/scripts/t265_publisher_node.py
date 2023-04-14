@@ -30,7 +30,6 @@ class t265_stereo:
 
     def depth_request_callback(self,bool_msg):
         self.depth_requested = bool_msg
-
     def get_extrinsics(self,src, dst):
         extrinsics = src.get_extrinsics_to(dst)
         R = np.reshape(extrinsics.rotation, [3,3]).T
@@ -75,8 +74,8 @@ class t265_stereo:
     def gen_obs_coord(self):
 
         # Set up an OpenCV window to visualize the results
-        WINDOW_TITLE = 'Realsense'
-        cv2.namedWindow(WINDOW_TITLE, cv2.WINDOW_NORMAL)
+        # WINDOW_TITLE = 'Realsense'
+        # cv2.namedWindow(WINDOW_TITLE, cv2.WINDOW_NORMAL)
 
         # Configure the OpenCV stereo algorithm. 
         window_size = 5
@@ -124,7 +123,7 @@ class t265_stereo:
         m1type = cv2.CV_32FC1
         time.sleep(1)
 
-        print('done waiting, init undistort')
+        #print('done waiting, init undistort')
 
         (lm1, lm2) = cv2.fisheye.initUndistortRectifyMap(K_left, D_left, R_left, P_left, stereo_size, m1type)
         (rm1, rm2) = cv2.fisheye.initUndistortRectifyMap(K_right, D_right, R_right, P_right, stereo_size, m1type)
@@ -153,17 +152,18 @@ class t265_stereo:
         # re-crop just the valid part of the disparity
         disparity = disparity[:,max_disp:]
         depth = (K_left[0,0]*0.064) / (disparity + 1e-6) 
-        depth_masked = np.ma.masked_inside(depth,1.2,3)
+        depth_masked = np.ma.masked_inside(depth,1.2,4.5)
         depth_mask = depth_masked.mask
         depth[~depth_mask] = 0
         mid_col = np.argmax(np.sum(depth_mask,axis=0))
-        obs_depth = np.average(depth[:,mid_col][depth_mask[:,mid_col]])
+        obs_depth = np.average(depth[0:300,mid_col][depth_mask[0:300,mid_col]])
+        print("================")
         print('Middle column is:', mid_col)
         print('Depth is:', obs_depth)
-        print("Image shape", depth_mask.shape)
+        #print("Image shape", depth_mask.shape)
         coords = Point()
         stereo_cx = 250
-        print("Cx is: ", stereo_cx)
+        #print("Cx is: ", stereo_cx)
         coords.x = (mid_col-stereo_cx)*obs_depth/stereo_focal_px
         print('X is: ', coords.x)
         coords.y = 0

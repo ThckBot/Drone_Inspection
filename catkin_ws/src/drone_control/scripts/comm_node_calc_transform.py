@@ -85,11 +85,12 @@ def comm_node():
     done_waypoints = False
 
     # Arm the drone
-    drone.arm()
-    drone.takeoff(0.75)
+    #drone.arm()
+    #drone.takeoff(0.75)
     
-
-    drone.hover_test(12)
+    while drone.position == None:
+        drone.rate.sleep()
+    #drone.hover_test(2)
     drone.compute_vicon_to_ekf_tf()
 
     print("Want to test if it will stay in place after hover is over: ")

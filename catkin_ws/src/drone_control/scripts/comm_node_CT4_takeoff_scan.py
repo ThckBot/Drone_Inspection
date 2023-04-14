@@ -81,25 +81,37 @@ def comm_node():
 
     print('This is a dummy drone node to test communication with the ground control')
 
-    computed = False
-    done_waypoints = False
 
-    # Arm the drone
+    # Start with arming
     drone.arm()
-    drone.takeoff(0.75)
-    
-    drone.hover_test(5)
+    drone.takeoff(1.5)
+    drone.hover_test(2)
 
-    # Scan Obstacles
+    # Create Test waypoints
+    wp1 = np.array([2, 0, 0.75])
+    wp2 = np.array([0, 0, 0.75])
+    wp3 = np.array([0, 2, 0.75])
+
+    waypoints = [wp1, wp2, wp3]
+
+    # Create Path Planner Object
     yaw_list = [0, np.pi/2, np.pi, 3*np.pi/2]
-    
-    print("Scanning Obstacles")
+
+    print("Scanning OBstacles")
     obstacles = drone.scan_obstacles(yaw_list)
-    print("Found Obstacles at coords", obstacles)
+    obs1 = Obstacle(obstacles[0,0], obstacles[0,1], -1)
+    obs2 = Obstacle(obstacles[1,0], obstacles[1,1], 1)
+    obs3 = Obstacle(obstacles[2,0], obstacles[2,1], -1)
+    obs4 = Obstacle(obstacles[3,0], obstacles[3,1], 1)
+    print("Obstacles collected")
+    print("obs1: ", obs1.coords)
+    print("obs2: ", obs2.coords)
+    print("obs3: ", obs3.coords)
+    print("obs4: ", obs4.coords)
+    obs_list = [obs1, obs2, obs3, obs4]
 
-
+    drone.hover_test(2)
     drone.land()
-    np.save('positions.npy',np.array(drone.positions).transpose)
     drone.shutdown()
     rospy.sleep(0.2)
     

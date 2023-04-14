@@ -22,4 +22,4 @@ def quaternion_to_yaw(q):
     '''
     x, y, z, w = q.x, q.y, q.z, q.w
     yaw = math.atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
-    return yaw_rad
+    return yaw

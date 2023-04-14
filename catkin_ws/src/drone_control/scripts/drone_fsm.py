@@ -436,7 +436,7 @@ class DroneFSM():
         '''
 
         for i,theta in enumerate(yaw_list):
-            print("Scanning position: ", theta)
+            print("=====Scanning position: ======", theta)
         
             obs_coords = np.zeros((4,2))
 
@@ -448,36 +448,40 @@ class DroneFSM():
 
             # Get yaw in degrees
             current_yaw = quaternion_to_yaw(self.orientation)
-
+            print("Getting into position")
             # Publish current positions while yaw error > 5 degrees/.085 rad
-            while abs(current_yaw - theta) > 0.18:
+
+            while True:
+                if abs(current_yaw - theta) > 0.18:
+                    print("reached desired yaw")
+                    print("current_yaw", current_yaw)
+                    print("theta",theta)
+                    break
                 self.publish_setpoint(self.sp_pos, yaw = theta)
                 self.sp_pos.x = 0
                 self.sp_pos.y = 0
-                self.sp_pos.z = 0.75
-                print("current_yaw", current_yaw)
-                current_yaw = quaternion_to_yaw(self.orientation)
-
-            # TODO check if this hover is necessary
-            self.hover_test(1)
+                self.sp_pos.z = 1.5
+                current_yaw = quaternion_to_yaw(self.orientation)          
+                print("stuck in getting pos")
 
             if record_obstacles == False:
                 continue
 
             # Average over 5 depth requests
             obs_list = []
-
-            for i in range(0,5,1):                
+            print("Average over depths")
+            for j in range(0,3,1):
+                print("Iter obstacle detect: ", j)
                 self.obs = None
-                self.request_depth_client.publish(True)
+                self.request_depth_client.publish(Bool(True))
 
                 while (self.obs == None) and (not rospy.is_shutdown()):
-                    self.hover_test(0.5)
+                    self.publish_setpoint(self.sp_pos, yaw = theta)
                     self.rate.sleep()
 
                 obs_list += [[self.obs.x,self.obs.y,self.obs.z]]
                 
-            self.request_depth_client.publish(False)
+            self.request_depth_client.publish(Bool(False))
 
             avg_obs = np.mean(obs_list,axis=0)
 

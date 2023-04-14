@@ -104,10 +104,10 @@ def comm_node():
     obs3 = Obstacle(obstacles[2,0], obstacles[2,1], -1)
     obs4 = Obstacle(obstacles[3,0], obstacles[3,1], 1)
     print("Obstacles collected")
-    print("obs1: ", obs1)
-    print("obs2: ", obs2)
-    print("obs3: ", obs3)
-    print("obs4: ", obs4)
+    print("obs1: ", obs1.coords)
+    print("obs2: ", obs2.coords)
+    print("obs3: ", obs3.coords)
+    print("obs4: ", obs4.coords)
     obs_list = [obs1, obs2, obs3, obs4]
 
     print("Calling path Planner and generating path")
