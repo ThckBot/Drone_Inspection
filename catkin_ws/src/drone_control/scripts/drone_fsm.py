@@ -237,7 +237,12 @@ class DroneFSM():
         print("self.orientation is: ", self.orientation)
         print("self.position.z is: ", self.position)
         print(rospy.is_shutdown())
-        while self.position.z < height -0.02 and not rospy.is_shutdown():
+        while not rospy.is_shutdown():
+            if self.position.z < height -0.02:
+                print("Reached height in takeoff")
+                print("self.position.z", self.position.z)
+                print("height", height)
+                break
             #print(self.state.armed)
             #print('z_position: ', self.position.z)
             #print('height: ', height)
