@@ -149,7 +149,12 @@ class DroneFSM():
         
         self.vicon_transform = T21
         self.vicon_transform_created = True
-        print("Computed Transform")        
+        print("=======Computed Transform=======")     
+        print("self.position ", self.position)
+        print("self.orientation ", self.orientation)
+        print("self.vicon_position ", self.vicon_position)
+        print("self.vicon_orientation ", self.vicon_orientation)
+        print("Final TransformT21: ", T21)
         return T21
 
     def update_rotation(self):
@@ -237,7 +242,12 @@ class DroneFSM():
         print("self.orientation is: ", self.orientation)
         print("self.position.z is: ", self.position)
         print(rospy.is_shutdown())
-        while self.position.z < height -0.02 and not rospy.is_shutdown():
+        while not rospy.is_shutdown():
+            if self.position.z < height -0.02:
+                print("Reached height in takeoff")
+                print("self.position.z", self.position.z)
+                print("height", height)
+                break
             #print(self.state.armed)
             #print('z_position: ', self.position.z)
             #print('height: ', height)
@@ -453,6 +463,8 @@ class DroneFSM():
 
             if record_obstacles == False:
                 continue
+
+            # Average over 5 depth requests
             obs_list = []
 
             for i in range(0,5,1):                
@@ -469,7 +481,7 @@ class DroneFSM():
 
             avg_obs = np.mean(obs_list,axis=0)
 
-            # Get the udated positions
+            # Get the updated positions
             obs_xpos, obs_ypos = self.get_obs_coords(avg_obs[0], avg_obs[2])
 
             #  Update the position of this coordinate 

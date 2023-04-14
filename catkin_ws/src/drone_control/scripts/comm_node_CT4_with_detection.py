@@ -81,54 +81,57 @@ def comm_node():
 
     print('This is a dummy drone node to test communication with the ground control')
 
-    computed = False
-    done_waypoints = False
+
+    # Start with arming
+    drone.arm()
+    drone.takeoff(0.75)
+    drone.hover_test(10)
+
+    # Create Test waypoints
+    wp1 = np.array([2, 0, 0.75])
+    wp2 = np.array([0, 0, 0.75])
+    wp3 = np.array([0, 2, 0.75])
+
+    waypoints = [wp1, wp2, wp3]
 
     # Create Path Planner Object
     yaw_list = [0, np.pi/2, np.pi, 3*np.pi/2]
+
+    print("Scanning OBstacles")
     obstacles = drone.scan_obstacles(yaw_list)
     obs1 = Obstacle(obstacles[0,0], obstacles[0,1], -1)
     obs2 = Obstacle(obstacles[1,0], obstacles[1,1], 1)
     obs3 = Obstacle(obstacles[2,0], obstacles[2,1], -1)
     obs4 = Obstacle(obstacles[3,0], obstacles[3,1], 1)
+    print("Obstacles collected")
+    print("obs1: ", obs1)
+    print("obs2: ", obs2)
+    print("obs3: ", obs3)
+    print("obs4: ", obs4)
     obs_list = [obs1, obs2, obs3, obs4]
 
+    print("Calling path Planner and generating path")
     PathPlan = PathPlanner(obs_list)
 
-    # Create Test waypoints
-    pos1 = np.array([2, 0, 0.50])
-    wp1 = Point()
-    wp1.x = pos1[0]
-    wp1.y = pos1[1]
-    wp1.z = pos1[2]
+    # Generate the trajectory while in air
+    start = np.array([drone.position.x, drone.position.y, drone.position.x])
+    traj = start.reshape((3,1))
+    print("For each waypoint")
+    for wp in waypoints:
+        print("Generate path for wp: ", wp)
+        sub_traj = PathPlan.generate_trajectory(start, wp)
+        print('Trajectory shape',traj.shape)
+        print('Sub trajectory shape',sub_traj.shape)
+        traj = np.hstack((traj, sub_traj))
+        start = wp
 
-    start = Point()
-    # Create Trajectory
-    print("WP1: ", wp1)
+    traj = np.transpose(traj)
 
-
-    print("trajectory is: traj")
-
-    # Arm the drone
-    drone.arm()
-    drone.takeoff(0.50)
-    drone.hover_test(5)
-    
-    #traj = PathPlan.generate_trajectory(wp1, drone.position)
     # Go to the positions
-    #for i in range(0, traj.shape[1]):
-    #    print("Waypoint is: ", traj[:, i])
-    #    drone.nav_waypoints(traj[:, i].T)
+    for i in range(0, traj.shape[1]):
+       print("Navigating to waypoint: ", traj[:, i])
+       drone.nav_waypoints(traj[:, i].T)
 
-
-    # print("Moving to waypoint 1\n")
-    # drone.nav_waypoints(pos1)
-    # drone.hover_test(5)
-    # print("Moving to waypoint 2\n")
-    # drone.nav_waypoints(pos2)
-    # drone.hover_test(5)
-    # print("Moving to waypoint 3\n")
-    # drone.nav_waypoints(pos3)
     drone.hover_test(5)
     drone.land()
     drone.shutdown()
